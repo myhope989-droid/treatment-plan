@@ -31,6 +31,7 @@ export const treatmentPlans = mysqlTable("treatment_plans", {
   examDuration: varchar("examDuration", { length: 100 }),
   projectDuration: varchar("projectDuration", { length: 100 }),
   teacherNotes: text("teacherNotes"),
+  initialActions: text("initialActions"),
   planType: mysqlEnum("planType", ["exam", "project", "both", "other"]).default("both").notNull(),
   customPlanType: varchar("customPlanType", { length: 255 }),
   status: mysqlEnum("status", ["draft", "processing", "completed"]).default("draft").notNull(),

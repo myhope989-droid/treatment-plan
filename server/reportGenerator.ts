@@ -44,6 +44,7 @@ async function generatePageHTML(plan: any, cls: any): Promise<string> {
   const qrExam = plan.examLink ? await generateQRBase64(plan.examLink) : "";
   const qrProject = plan.projectLink ? await generateQRBase64(plan.projectLink) : "";
   const notes = plan.teacherNotes || DEFAULT_NOTES;
+  const initialActionsText = plan.initialActions || "";
   const students: any[] = cls.students || [];
 
   const rows = students.map((s: any, idx: number) => {
@@ -215,8 +216,14 @@ async function generatePageHTML(plan: any, cls: any): Promise<string> {
     <tbody>${rows || `<tr><td colspan="8" style="text-align:center;color:#888;padding:8px;">لا يوجد طلاب</td></tr>`}</tbody>
   </table>
 
+  ${initialActionsText ? `
+  <div class="notes" style="border-color:#b8860b;background:#fffbeb;margin-bottom:3px;">
+    <div class="notes-title" style="color:#92660a;border-color:#b8860b;">✅ الإجراءات الأولية المنفذة قبل الخطة العلاجية:</div>
+    <div class="notes-text">${initialActionsText}</div>
+  </div>` : ""}
+
   <div class="notes">
-    <div class="notes-title">ملاحظات المعلم / الإجراءات العلاجية المقترحة:</div>
+    <div class="notes-title">ملاحظات المعلم / الإجراءات العلاجية الأولية المنفذة:</div>
     <div class="notes-text">${notes}</div>
   </div>
 
@@ -321,6 +328,7 @@ export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
 export async function generateTreatmentPlanDOCX(plan: any): Promise<Buffer> {
   const moeLogoBuffer = fs.existsSync(MOE_LOGO_PATH) ? fs.readFileSync(MOE_LOGO_PATH) : null;
   const notes = plan.teacherNotes || DEFAULT_NOTES;
+  const initialActionsText = plan.initialActions || "";
   const classesWithStudents = (plan.classes || []).filter((c: any) => c.students && c.students.length > 0);
 
   const docSections: any[] = [];
@@ -401,8 +409,14 @@ export async function generateTreatmentPlanDOCX(plan: any): Promise<Buffer> {
       new Paragraph({ text: `الخطة العلاجية للصف خامس / ${cls.classNumber}`, heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER }),
       new Paragraph({ children: [new TextRun({ text: `المعلم: ${plan.teacherName}  |  المادة: ${plan.subject}  |  الفصل: ${plan.academicYear || ""}`, size: 16 })], alignment: AlignmentType.CENTER }),
       new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } }),
-      new Paragraph({ text: "ملاحظات المعلم / الإجراءات العلاجية:", alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "ملاحظات المعلم / الإجراءات العلاجية:", bold: true, size: 16, color: "1a7a5e" })] }),
-      new Paragraph({ text: notes, alignment: AlignmentType.BOTH }),
+      new Paragraph({ text: "" }),
+      ...(initialActionsText ? [
+        new Paragraph({ children: [new TextRun({ text: "✅ الإجراءات الأولية المنفذة قبل الخطة العلاجية:", bold: true, size: 16, color: "92660a" })], alignment: AlignmentType.RIGHT }),
+        new Paragraph({ children: [new TextRun({ text: initialActionsText, size: 15 })], alignment: AlignmentType.BOTH }),
+        new Paragraph({ text: "" }),
+      ] : []),
+      new Paragraph({ children: [new TextRun({ text: "ملاحظات المعلم / الإجراءات العلاجية الأولية المنفذة:", bold: true, size: 16, color: "1a7a5e" })], alignment: AlignmentType.RIGHT }),
+      new Paragraph({ children: [new TextRun({ text: notes, size: 15 })], alignment: AlignmentType.BOTH }),
       new Paragraph({ text: "" }),
       new Paragraph({
         alignment: AlignmentType.CENTER,

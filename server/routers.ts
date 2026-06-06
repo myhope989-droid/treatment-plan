@@ -79,6 +79,7 @@ export const appRouter = router({
         examDuration: z.string().optional(),
         projectDuration: z.string().optional(),
         teacherNotes: z.string().optional(),
+        initialActions: z.string().optional(),
         schoolLogoUrl: z.string().optional(),
         schoolLogoBase64: z.string().optional(),
         status: z.enum(["draft", "processing", "completed"]).optional(),

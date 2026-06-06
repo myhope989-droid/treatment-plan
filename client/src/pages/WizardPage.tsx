@@ -97,6 +97,7 @@ export default function WizardPage() {
   const [examDuration, setExamDuration] = useState("يومين");
   const [projectDuration, setProjectDuration] = useState("يومين");
   const [teacherNotes, setTeacherNotes] = useState("");
+  const [initialActions, setInitialActions] = useState("");
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [currentClassIdx, setCurrentClassIdx] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -714,16 +715,36 @@ export default function WizardPage() {
         )}
       </div>
 
+      {/* الإجراءات الأولية المنفذة */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+        <label className="block text-sm font-bold text-amber-900">
+          ✅ الإجراءات الأولية المنفذة قبل الخطة العلاجية
+        </label>
+        <p className="text-xs text-amber-700">
+          ما قام به المعلم من إجراءات قبل رفع هذه الخطة للمدير (مثال: تواصل مع الطالب، تنبيه شفهي، إرسال رسالة لولي الأمر...)
+        </p>
+        <Textarea
+          value={initialActions}
+          onChange={e => setInitialActions(e.target.value)}
+          placeholder="مثال: تم تنبيه الطالب شفهياً داخل الفصل، وإرسال رسالة لولي الأمر عبر نظام المدرسة..."
+          className="text-right min-h-[80px]"
+          rows={3}
+        />
+      </div>
+
+      {/* ملاحظات المعلم / الإجراءات العلاجية الأولية المنفذة */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1">ملاحظات المعلم / الإجراءات العلاجية</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">
+          ملاحظات المعلم / الإجراءات العلاجية الأولية المنفذة
+        </label>
         <Textarea
           value={teacherNotes}
           onChange={e => setTeacherNotes(e.target.value)}
-          placeholder="اتركه فارغاً لاستخدام النص الافتراضي..."
+          placeholder="أدخل ملاحظاتك والإجراءات العلاجية المقترحة للطلاب..."
           className="text-right min-h-[100px]"
           rows={4}
         />
-        <p className="text-gray-400 text-xs mt-1">إذا تركته فارغاً سيُستخدم نص افتراضي احترافي</p>
+        <p className="text-gray-400 text-xs mt-1">ستظهر هذه الملاحظات في التقرير المرفوع للمدير</p>
       </div>
 
       <div className="flex justify-between pt-2">
@@ -754,6 +775,7 @@ export default function WizardPage() {
                 examDuration: examDuration || undefined,
                 projectDuration: projectDuration || undefined,
                 teacherNotes: teacherNotes || undefined,
+                initialActions: initialActions || undefined,
                 schoolLogoBase64: schoolLogoBase64 || undefined,
               });
 
