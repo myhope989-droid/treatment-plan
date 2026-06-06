@@ -112,22 +112,14 @@ export default function PlanDetailPage() {
                 </a>
               )}
               {plan.pdfUrl && (
-                <Button
-                  className="bg-amber-700 hover:bg-amber-800 text-white"
-                  onClick={() => {
-                    const printWindow = window.open(plan.pdfUrl!, "_blank");
-                    if (printWindow) {
-                      printWindow.addEventListener("load", () => {
-                        printWindow.print();
-                      });
-                    }
-                  }}
-                >
-                  <Printer className="w-4 h-4 ml-2" /> طباعة مباشرة
-                </Button>
+                <a href={plan.pdfUrl} target="_blank" rel="noopener noreferrer">
+                  <Button className="bg-amber-700 hover:bg-amber-800 text-white">
+                    <Printer className="w-4 h-4 ml-2" /> فتح للطباعة
+                  </Button>
+                </a>
               )}
             </div>
-            <p className="text-xs text-gray-400 mt-2">ℹ️ للطباعة المباشرة سيتم فتح ملف PDF ثم ستظهر نافذة الطباعة تلقائياً</p>
+            <p className="text-xs text-gray-400 mt-2">ℹ️ اضغط على "فتح للطباعة" لفتح ملف PDF ثم اضغط على زر الطباعة في المتصفح</p>
           </div>
         )}
 

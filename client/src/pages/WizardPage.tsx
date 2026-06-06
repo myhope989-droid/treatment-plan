@@ -876,22 +876,18 @@ export default function WizardPage() {
           </a>
         )}
         {generatedPdfUrl && (
-          <Button
-            size="lg"
-            className="bg-amber-700 hover:bg-amber-800 text-white px-8 rounded-xl w-full sm:w-auto"
-            onClick={() => {
-              const printWindow = window.open(generatedPdfUrl, "_blank");
-              if (printWindow) {
-                printWindow.addEventListener("load", () => printWindow.print());
-              }
-            }}
-          >
-            <Printer className="w-5 h-5 ml-2" />
-            طباعة مباشرة
-          </Button>
+          <a href={generatedPdfUrl} target="_blank" rel="noopener noreferrer">
+            <Button
+              size="lg"
+              className="bg-amber-700 hover:bg-amber-800 text-white px-8 rounded-xl w-full sm:w-auto"
+            >
+              <Printer className="w-5 h-5 ml-2" />
+              فتح للطباعة
+            </Button>
+          </a>
         )}
       </div>
-      <p className="text-xs text-gray-400 mb-6">ℹ️ للطباعة المباشرة سيتم فتح ملف PDF ثم ستظهر نافذة الطباعة تلقائياً</p>
+      <p className="text-xs text-gray-400 mb-6">ℹ️ اضغط على "فتح للطباعة" لفتح ملف PDF ثم اضغط على زر الطباعة في المتصفح</p>
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Button variant="outline" onClick={() => navigate("/history")}>
