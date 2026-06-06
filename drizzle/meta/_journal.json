@@ -29,6 +29,13 @@
       "when": 1780750321432,
       "tag": "0003_quiet_magdalene",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1780755581749,
+      "tag": "0004_first_black_widow",
+      "breakpoints": true
     }
   ]
 }

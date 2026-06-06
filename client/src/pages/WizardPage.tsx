@@ -89,7 +89,9 @@ export default function WizardPage() {
   const [classCount, setClassCount] = useState(1);
   const [planType, setPlanType] = useState<PlanType>("both");
   const [customPlanType, setCustomPlanType] = useState("");
-  const [academicYear, setAcademicYear] = useState("الثاني / 1446-1447هـ");
+  const [academicYear, setAcademicYear] = useState("الثاني");
+  const [academicYearHijri, setAcademicYearHijri] = useState("");
+  const [gradeLevel, setGradeLevel] = useState("");
   const [schoolLogoBase64, setSchoolLogoBase64] = useState<string>("");
   const [schoolLogoUrl, setSchoolLogoUrl] = useState<string>("");
   const [examLink, setExamLink] = useState("");
@@ -212,8 +214,37 @@ export default function WizardPage() {
           <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="مثال: الرياضيات، اللغة العربية" className="text-right" />
         </div>
         <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">الصف الدراسي *</label>
+          <Input value={gradeLevel} onChange={e => setGradeLevel(e.target.value)} placeholder="مثال: خامس ابتدائي / ثالث متوسط" className="text-right" />
+        </div>
+        <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">الفصل الدراسي</label>
-          <Input value={academicYear} onChange={e => setAcademicYear(e.target.value)} placeholder="الثاني / 1446-1447هـ" className="text-right" />
+          <div className="flex gap-2 items-center">
+            <select
+              value={academicYear}
+              onChange={e => setAcademicYear(e.target.value)}
+              className="flex-shrink-0 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+            >
+              <option value="الأول">الأول</option>
+              <option value="الثاني">الثاني</option>
+              <option value="الثالث">الثالث</option>
+            </select>
+            <span className="text-gray-500 text-sm">/</span>
+            <div className="flex-1 flex items-center gap-1">
+              <Input
+                value={academicYearHijri}
+                onChange={e => {
+                  // السماح بالأرقام فقط بحد أقصى 9 أحرف (مثال: 1446-1447)
+                  const val = e.target.value.replace(/[^0-9\-]/g, "").slice(0, 9);
+                  setAcademicYearHijri(val);
+                }}
+                placeholder="1446-1447"
+                className="text-right"
+                maxLength={9}
+              />
+              <span className="text-gray-700 font-bold text-sm whitespace-nowrap">هـ</span>
+            </div>
+          </div>
         </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">عدد الفصول *</label>
@@ -357,9 +388,12 @@ export default function WizardPage() {
     let currentClassIds: number[] = classes.map((c) => c.classId || 0);
     if (!currentPlanId) {
       try {
+        const fullAcademicYear = academicYearHijri
+          ? `${academicYear} / ${academicYearHijri}هـ`
+          : academicYear;
         const result = await createPlan.mutateAsync({
           teacherName, schoolName, principalName, subject, classCount,
-          planType, customPlanType, academicYear,
+          planType, customPlanType, academicYear: fullAcademicYear, gradeLevel,
         });
         currentPlanId = result.planId;
         currentClassIds = result.classIds || [];

@@ -26,6 +26,7 @@ export const treatmentPlans = mysqlTable("treatment_plans", {
   classCount: int("classCount").notNull().default(1),
   schoolLogoUrl: text("schoolLogoUrl"),
   academicYear: varchar("academicYear", { length: 50 }).default("الثاني / 1446-1447هـ"),
+  gradeLevel: varchar("gradeLevel", { length: 100 }),
   examLink: text("examLink"),
   projectLink: text("projectLink"),
   examDuration: varchar("examDuration", { length: 100 }),

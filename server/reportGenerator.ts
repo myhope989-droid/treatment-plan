@@ -191,11 +191,11 @@ async function generatePageHTML(plan: any, cls: any): Promise<string> {
     ${plan.schoolLogoUrl && plan.schoolLogoUrl.startsWith("data:") ? `<img src="${plan.schoolLogoUrl}" alt="شعار المدرسة"/>` : `<div style="width:58px;"></div>`}
   </div>
 
-  <div class="title">الخطة العلاجية للصف ${cls.className || cls.classNumber}</div>
+  <div class="title">الخطة العلاجية للصف ${plan.gradeLevel || cls.className || cls.classNumber}</div>
 
   <div class="info-row">
     <div class="info-box"><span class="lbl">الفصل الدراسي</span><span class="val">${plan.academicYear || "الثاني / 1446-1447هـ"}</span></div>
-    <div class="info-box"><span class="lbl">الصف والفصل</span><span class="val">خامس / ${cls.classNumber}</span></div>
+    <div class="info-box"><span class="lbl">الصف والفصل</span><span class="val">${plan.gradeLevel || "الصف"} / ${cls.classNumber}</span></div>
     <div class="info-box"><span class="lbl">المادة الدراسية</span><span class="val">${plan.subject}</span></div>
     <div class="info-box"><span class="lbl">التاريخ</span><span class="val">...... / ...... / ....هـ</span></div>
   </div>
@@ -412,8 +412,8 @@ export async function generateTreatmentPlanDOCX(plan: any): Promise<Buffer> {
 
     const sectionChildren: any[] = [
       headerTable,
-      new Paragraph({ text: `الخطة العلاجية للصف خامس / ${cls.classNumber}`, heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER }),
-      new Paragraph({ children: [new TextRun({ text: `المعلم: ${plan.teacherName}  |  المادة: ${plan.subject}  |  الفصل: ${plan.academicYear || ""}`, size: 16 })], alignment: AlignmentType.CENTER }),
+      new Paragraph({ text: `الخطة العلاجية للصف ${plan.gradeLevel || cls.className || cls.classNumber}`, heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER }),
+      new Paragraph({ children: [new TextRun({ text: `المعلم: ${plan.teacherName}  |  المادة: ${plan.subject}  |  الصف: ${plan.gradeLevel || ""}  |  الفصل: ${plan.academicYear || ""}`, size: 16 })], alignment: AlignmentType.CENTER }),
       new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } }),
       new Paragraph({ text: "" }),
       ...(initialActionsText ? [
