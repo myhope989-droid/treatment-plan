@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { useLocation, useParams } from "wouter";
-import { ArrowRight, Download, BookOpen, Home, Loader2, Users, FileText, Link2 } from "lucide-react";
+import { ArrowRight, Download, BookOpen, Home, Loader2, Users, FileText, Link2, Printer } from "lucide-react";
 
 export default function PlanDetailPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -92,11 +92,11 @@ export default function PlanDetailPage() {
           )}
         </div>
 
-        {/* Download buttons */}
+        {/* Download & Print buttons */}
         {plan.status === "completed" && (plan.pdfUrl || plan.docxUrl) && (
           <div className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5">
-            <h3 className="font-bold text-gray-700 mb-3">تنزيل التقرير</h3>
-            <div className="flex gap-3">
+            <h3 className="font-bold text-gray-700 mb-3">تنزيل وطباعة التقرير</h3>
+            <div className="flex flex-wrap gap-3">
               {plan.pdfUrl && (
                 <a href={plan.pdfUrl} target="_blank" rel="noopener noreferrer">
                   <Button className="bg-red-600 hover:bg-red-700 text-white">
@@ -111,7 +111,23 @@ export default function PlanDetailPage() {
                   </Button>
                 </a>
               )}
+              {plan.pdfUrl && (
+                <Button
+                  className="bg-amber-700 hover:bg-amber-800 text-white"
+                  onClick={() => {
+                    const printWindow = window.open(plan.pdfUrl!, "_blank");
+                    if (printWindow) {
+                      printWindow.addEventListener("load", () => {
+                        printWindow.print();
+                      });
+                    }
+                  }}
+                >
+                  <Printer className="w-4 h-4 ml-2" /> طباعة مباشرة
+                </Button>
+              )}
             </div>
+            <p className="text-xs text-gray-400 mt-2">ℹ️ للطباعة المباشرة سيتم فتح ملف PDF ثم ستظهر نافذة الطباعة تلقائياً</p>
           </div>
         )}
 

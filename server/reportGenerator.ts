@@ -241,6 +241,12 @@ async function generatePageHTML(plan: any, cls: any): Promise<string> {
       <div class="sig-label">التوقيع</div>
     </div>
     <div class="sig">
+      <div class="sig-title">المرشد الطلابي</div>
+      <div class="sig-name">.............................</div>
+      <div class="sig-line"></div>
+      <div class="sig-label">التوقيع</div>
+    </div>
+    <div class="sig">
       <div class="sig-title">توقيع ولي الأمر</div>
       <div class="sig-name">.............................</div>
       <div class="sig-line"></div>
@@ -421,11 +427,13 @@ export async function generateTreatmentPlanDOCX(plan: any): Promise<Buffer> {
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [
-          new TextRun({ text: `المعلم: ${plan.teacherName}`, size: 16 }),
+          new TextRun({ text: `المعلم: ${plan.teacherName}`, size: 16, bold: true }),
           new TextRun({ text: "          ", size: 16 }),
-          new TextRun({ text: `مدير المدرسة: ${plan.principalName}`, size: 16 }),
+          new TextRun({ text: `مدير المدرسة: ${plan.principalName}`, size: 16, bold: true }),
           new TextRun({ text: "          ", size: 16 }),
-          new TextRun({ text: "ولي الأمر: .......................", size: 16 }),
+          new TextRun({ text: "المرشد الطلابي: .......................", size: 16, bold: true }),
+          new TextRun({ text: "          ", size: 16 }),
+          new TextRun({ text: "ولي الأمر: .......................", size: 16, bold: true }),
         ],
       }),
     ];

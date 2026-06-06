@@ -10,7 +10,7 @@ import {
   ArrowRight, ArrowLeft, CheckCircle, Upload, Loader2,
   User, School, BookOpen, Users, Link2, Clock, FileText,
   Trash2, Plus, Eye, Download, Home, X, Edit2, Save,
-  History as HistoryIcon
+  History as HistoryIcon, Printer
 } from "lucide-react";
 import { getLoginUrl } from "@/const";
 
@@ -809,7 +809,7 @@ export default function WizardPage() {
       <h2 className="text-2xl font-bold text-gray-800 mb-2">تم توليد الخطة العلاجية!</h2>
       <p className="text-gray-500 text-sm mb-8">يمكنك تنزيل التقرير بصيغة PDF أو DOCX</p>
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+      <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
         {generatedPdfUrl && (
           <a href={generatedPdfUrl} target="_blank" rel="noopener noreferrer">
             <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white px-8 rounded-xl w-full sm:w-auto">
@@ -826,7 +826,23 @@ export default function WizardPage() {
             </Button>
           </a>
         )}
+        {generatedPdfUrl && (
+          <Button
+            size="lg"
+            className="bg-amber-700 hover:bg-amber-800 text-white px-8 rounded-xl w-full sm:w-auto"
+            onClick={() => {
+              const printWindow = window.open(generatedPdfUrl, "_blank");
+              if (printWindow) {
+                printWindow.addEventListener("load", () => printWindow.print());
+              }
+            }}
+          >
+            <Printer className="w-5 h-5 ml-2" />
+            طباعة مباشرة
+          </Button>
+        )}
       </div>
+      <p className="text-xs text-gray-400 mb-6">ℹ️ للطباعة المباشرة سيتم فتح ملف PDF ثم ستظهر نافذة الطباعة تلقائياً</p>
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Button variant="outline" onClick={() => navigate("/history")}>
