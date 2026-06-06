@@ -36,6 +36,13 @@
       "when": 1780755581749,
       "tag": "0004_first_black_widow",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1780758586721,
+      "tag": "0005_parched_silver_fox",
+      "breakpoints": true
     }
   ]
 }

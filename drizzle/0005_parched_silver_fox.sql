@@ -1,0 +1,1 @@
+ALTER TABLE `treatment_plans` ADD `counselorName` varchar(255);

@@ -37,6 +37,7 @@ export const appRouter = router({
         schoolLogoUrl: z.string().optional(),
         academicYear: z.string().optional(),
         gradeLevel: z.string().optional(),
+        counselorName: z.string().optional(),
         planType: z.enum(["exam", "project", "both", "other"]),
         customPlanType: z.string().optional(),
       }))
@@ -51,6 +52,7 @@ export const appRouter = router({
           schoolLogoUrl: input.schoolLogoUrl,
           academicYear: input.academicYear || "الثاني / 1446-1447هـ",
           gradeLevel: input.gradeLevel,
+          counselorName: input.counselorName,
           planType: input.planType,
           customPlanType: input.customPlanType,
           status: "draft",
@@ -85,6 +87,7 @@ export const appRouter = router({
         schoolLogoUrl: z.string().optional(),
         schoolLogoBase64: z.string().optional(),
         gradeLevel: z.string().optional(),
+        counselorName: z.string().optional(),
         status: z.enum(["draft", "processing", "completed"]).optional(),
       }))
       .mutation(async ({ ctx, input }) => {

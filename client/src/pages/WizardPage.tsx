@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,6 +88,7 @@ export default function WizardPage() {
   const [academicYear, setAcademicYear] = useState("الثاني");
   const [academicYearHijri, setAcademicYearHijri] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
+  const [counselorName, setCounselorName] = useState("");
   const [schoolLogoBase64, setSchoolLogoBase64] = useState<string>("");
   const [schoolLogoUrl, setSchoolLogoUrl] = useState<string>("");
   const [examLink, setExamLink] = useState("");
@@ -102,6 +103,37 @@ export default function WizardPage() {
   const [generatedPdfUrl, setGeneratedPdfUrl] = useState("");
   const [generatedDocxUrl, setGeneratedDocxUrl] = useState("");
   const [editingStudentId, setEditingStudentId] = useState<number | null>(null);
+
+  // helper آمن للـ localStorage
+  const safeLocalGet = (key: string) => {
+    try { return localStorage.getItem(key); }
+    catch { return null; }
+  };
+  const safeLocalSet = (key: string, value: string) => {
+    try { localStorage.setItem(key, value); }
+    catch { /* localStorage غير متاح أو ممتلئ */ }
+  };
+
+  // تحميل البيانات المحفوظة من localStorage عند أول تحميل
+  useEffect(() => {
+    const saved = safeLocalGet("teacherProfile");
+    if (!saved) return;
+    try {
+      const profile = JSON.parse(saved);
+      if (typeof profile !== "object" || !profile) return;
+      if (profile.teacherName) setTeacherName(String(profile.teacherName));
+      if (profile.schoolName) setSchoolName(String(profile.schoolName));
+      if (profile.principalName) setPrincipalName(String(profile.principalName));
+      if (profile.subject) setSubject(String(profile.subject));
+      if (profile.gradeLevel) setGradeLevel(String(profile.gradeLevel));
+      if (profile.counselorName) setCounselorName(String(profile.counselorName));
+      if (profile.academicYear) setAcademicYear(String(profile.academicYear));
+      if (profile.academicYearHijri) setAcademicYearHijri(String(profile.academicYearHijri));
+    } catch {
+      // بيانات تالفة - تجاهلها
+      safeLocalSet("teacherProfile", "");
+    }
+  }, []);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -248,6 +280,10 @@ export default function WizardPage() {
           </div>
         </div>
         <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">اسم المرشد / المرشدة الطلابية</label>
+          <Input value={counselorName} onChange={e => setCounselorName(e.target.value)} placeholder="مثال: خالد عبدالله الزهراني" className="text-right" />
+        </div>
+        <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">عدد الفصول *</label>
           <Input
             type="number" min={1} max={20}
@@ -299,8 +335,12 @@ export default function WizardPage() {
               toast.error("يرجى ملء جميع الحقول المطلوبة");
               return;
             }
+            // حفظ بيانات المعلم في localStorage
+            safeLocalSet("teacherProfile", JSON.stringify({
+              teacherName, schoolName, principalName, subject,
+              gradeLevel, counselorName, academicYear, academicYearHijri
+            }));
             // إعادة تهيئة كاملة عند الضغط على التالي في Step 1
-            // هذا يضمن أن planId و classIds يتم إعادة توليدها من الخادم عند التحليل
             setPlanId(null);
             initClasses(classCount);
             setStep(2);
@@ -394,7 +434,7 @@ export default function WizardPage() {
           : academicYear;
         const result = await createPlan.mutateAsync({
           teacherName, schoolName, principalName, subject, classCount,
-          planType, customPlanType, academicYear: fullAcademicYear, gradeLevel,
+          planType, customPlanType, academicYear: fullAcademicYear, gradeLevel, counselorName,
         });
         currentPlanId = result.planId;
         currentClassIds = result.classIds || [];
@@ -887,7 +927,29 @@ export default function WizardPage() {
           </a>
         )}
       </div>
-      <p className="text-xs text-gray-400 mb-6">ℹ️ اضغط على "فتح للطباعة" لفتح ملف PDF ثم اضغط على زر الطباعة في المتصفح</p>
+      <p className="text-xs text-gray-400 mb-4">ℹ️ اضغط على "فتح للطباعة" لفتح ملف PDF ثم اضغط على زر الطباعة في المتصفح</p>
+
+      {/* معاينة التقرير */}
+      {generatedPdfUrl && (
+        <div className="mb-6 text-right">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-1">
+              <Eye className="w-4 h-4 text-amber-700" />
+              معاينة التقرير
+            </h3>
+            <span className="text-xs text-gray-400">يمكن التمرير داخل المعاينة</span>
+          </div>
+          <div className="border-2 border-amber-200 rounded-xl overflow-hidden shadow-md bg-gray-50">
+            <iframe
+              src={generatedPdfUrl}
+              className="w-full"
+              style={{ height: "500px" }}
+              title="معاينة التقرير"
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-1 text-center">ℹ️ إذا لم تظهر المعاينة استخدم زر "تنزيل PDF" أعلاه</p>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Button variant="outline" onClick={() => navigate("/history")}>

@@ -242,7 +242,7 @@ async function generatePageHTML(plan: any, cls: any): Promise<string> {
     </div>
     <div class="sig">
       <div class="sig-title">المرشد الطلابي</div>
-      <div class="sig-name">.............................</div>
+      <div class="sig-name">${plan.counselorName || '.............................'}</div>
       <div class="sig-line"></div>
       <div class="sig-label">التوقيع</div>
     </div>
@@ -431,7 +431,7 @@ export async function generateTreatmentPlanDOCX(plan: any): Promise<Buffer> {
           new TextRun({ text: "          ", size: 16 }),
           new TextRun({ text: `مدير المدرسة: ${plan.principalName}`, size: 16, bold: true }),
           new TextRun({ text: "          ", size: 16 }),
-          new TextRun({ text: "المرشد الطلابي: .......................", size: 16, bold: true }),
+          new TextRun({ text: `المرشد الطلابي: ${plan.counselorName || "......................."}`, size: 16, bold: true }),
           new TextRun({ text: "          ", size: 16 }),
           new TextRun({ text: "ولي الأمر: .......................", size: 16, bold: true }),
         ],
