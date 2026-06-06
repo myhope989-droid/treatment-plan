@@ -3,6 +3,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
 import {
@@ -137,9 +138,13 @@ export const appRouter = router({
         planType: z.enum(["exam", "project", "both", "other"]),
       }))
       .mutation(async ({ ctx, input }) => {
+        // تحقق مبكر من صحة classId
+        if (!input.classId || input.classId <= 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'classId غير صالح - يرجى إعادة المحاولة' });
+        }
         // التحقق من وجود الخطة
         const plan = await getTreatmentPlanById(input.planId);
-        if (!plan) throw new Error("الخطة غير موجودة");
+        if (!plan) throw new TRPCError({ code: 'NOT_FOUND', message: 'الخطة غير موجودة' });
 
         // رفع الملف إلى التخزين
         const buffer = Buffer.from(input.fileBase64, "base64");

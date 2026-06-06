@@ -103,6 +103,10 @@ export default function WizardPage() {
   const [generatedPdfUrl, setGeneratedPdfUrl] = useState("");
   const [generatedDocxUrl, setGeneratedDocxUrl] = useState("");
   const [editingStudentId, setEditingStudentId] = useState<number | null>(null);
+  // state مستقلة لـ classIds من الخادم - المصدر الوحيد الموثوق
+  const [serverClassIds, setServerClassIds] = useState<number[]>([]);
+  // mutex لمنع double-submit
+  const isAnalyzingRef = useRef<Record<number, boolean>>({});
 
   // helper آمن للـ localStorage
   const safeLocalGet = (key: string) => {
@@ -145,6 +149,7 @@ export default function WizardPage() {
   const generateReport = trpc.plan.generate.useMutation();
   const updateStudent = trpc.plan.updateStudent.useMutation();
   const addStudent = trpc.plan.addStudent.useMutation();
+  const trpcUtils = trpc.useUtils();
 
   // لا يوجد auth guard - التطبيق مفتوح للجميع
 
@@ -342,6 +347,8 @@ export default function WizardPage() {
             }));
             // إعادة تهيئة كاملة عند الضغط على التالي في Step 1
             setPlanId(null);
+            setServerClassIds([]); // مسح classIds القديمة
+            isAnalyzingRef.current = {}; // مسح mutex
             initClasses(classCount);
             setStep(2);
           }}
@@ -424,46 +431,63 @@ export default function WizardPage() {
     const cls = classes[classIdx];
     if (cls.files.length === 0) { toast.error("يرجى رفع كشف الطلاب أولاً"); return; }
 
-    // إنشاء الخطة في قاعدة البيانات إذا لم تكن موجودة
-    let currentPlanId = planId;
-    let currentClassIds: number[] = classes.map((c) => c.classId || 0);
-    if (!currentPlanId) {
-      try {
-        const fullAcademicYear = academicYearHijri
-          ? `${academicYear} / ${academicYearHijri}هـ`
-          : academicYear;
-        const result = await createPlan.mutateAsync({
-          teacherName, schoolName, principalName, subject, classCount,
-          planType, customPlanType, academicYear: fullAcademicYear, gradeLevel, counselorName,
-        });
-        currentPlanId = result.planId;
-        currentClassIds = result.classIds || [];
-        setPlanId(currentPlanId);
-        // تحديث classIds في الـ state
-        setClasses(prev => prev.map((c, i) => ({ ...c, classId: result.classIds?.[i] || c.classId })));
-      } catch (err) {
-        toast.error("فشل إنشاء الخطة: " + String(err));
-        return;
-      }
-    } else {
-      // الخطة موجودة - تأكد من أن classIds محدّثة من الـ state الحالي
-      currentClassIds = classes.map((c) => c.classId || 0);
-    }
-
-    // الحصول على classId الحقيقي - يجب أن يكون من قاعدة البيانات
-    const realClassId = currentClassIds[classIdx] || classes[classIdx].classId;
-    if (!realClassId) {
-      // إذا لم يوجد classId، أعد إنشاء الخطة من الصفر
-      toast.error("خطأ في تحديد الفصل. يرجى الضغط على 'السابق' ثم 'التالي' مرة أخرى");
-      setPlanId(null);
-      setClasses(prev => prev.map(c => ({ ...c, classId: undefined })));
+    // منع double-submit (مهم على الجوال)
+    if (isAnalyzingRef.current[classIdx]) {
+      toast.error("جاري التحليل بالفعل، يرجى الانتظار");
       return;
     }
-
-    // جلب classId من الخادم
-    setClasses(prev => prev.map((c, i) => i === classIdx ? { ...c, analysisStatus: "processing" } : c));
+    isAnalyzingRef.current[classIdx] = true;
 
     try {
+      // إنشاء الخطة في قاعدة البيانات إذا لم تكن موجودة
+      let currentPlanId = planId;
+      let currentClassIds: number[] = [...serverClassIds]; // استخدام المصدر الموثوق
+
+      if (!currentPlanId || currentClassIds.length === 0) {
+        // إنشاء خطة جديدة
+        try {
+          const fullAcademicYear = academicYearHijri
+            ? `${academicYear} / ${academicYearHijri}هـ`
+            : academicYear;
+          const result = await createPlan.mutateAsync({
+            teacherName, schoolName, principalName, subject, classCount,
+            planType, customPlanType, academicYear: fullAcademicYear, gradeLevel, counselorName,
+          });
+          currentPlanId = result.planId;
+          currentClassIds = result.classIds || [];
+          // تحديث state المستقلة - المصدر الوحيد الموثوق
+          setPlanId(currentPlanId);
+          setServerClassIds(currentClassIds);
+        } catch (err) {
+          toast.error("فشل إنشاء الخطة: " + String(err));
+          return;
+        }
+      } else if (currentPlanId && currentClassIds.length === 0) {
+        // planId موجود لكن classIds غير محملة - جلبها من الخادم
+        try {
+          const planData = await trpcUtils.plan.getById.fetch({ planId: currentPlanId });
+          currentClassIds = (planData.classes || []).map((c: any) => c.id);
+          setServerClassIds(currentClassIds);
+        } catch (err) {
+          toast.error("فشل جلب بيانات الفصول. يرجى الضغط على 'السابق' ثم 'التالي'");
+          setPlanId(null);
+          setServerClassIds([]);
+          return;
+        }
+      }
+
+      // الحصول على classId الحقيقي من serverClassIds فقط
+      const realClassId = currentClassIds[classIdx];
+      if (!realClassId || realClassId <= 0) {
+        toast.error("خطأ في تحديد الفصل. يرجى الضغط على 'السابق' ثم 'التالي' مرة أخرى");
+        setPlanId(null);
+        setServerClassIds([]);
+        return;
+      }
+
+      // تحديث حالة الفصل إلى processing
+      setClasses(prev => prev.map((c, i) => i === classIdx ? { ...c, analysisStatus: "processing" } : c));
+
       // تحليل كل ملف
       let allStudents: StudentData[] = [];
       for (const file of cls.files) {
@@ -494,6 +518,9 @@ export default function WizardPage() {
     } catch (err) {
       setClasses(prev => prev.map((c, i) => i === classIdx ? { ...c, analysisStatus: "error" } : c));
       toast.error("فشل التحليل: " + String(err));
+    } finally {
+      // تحرير mutex دائماً
+      isAnalyzingRef.current[classIdx] = false;
     }
   };
 
