@@ -267,6 +267,9 @@ export default function WizardPage() {
               toast.error("يرجى ملء جميع الحقول المطلوبة");
               return;
             }
+            // إعادة تهيئة كاملة عند الضغط على التالي في Step 1
+            // هذا يضمن أن planId و classIds يتم إعادة توليدها من الخادم عند التحليل
+            setPlanId(null);
             initClasses(classCount);
             setStep(2);
           }}
@@ -351,7 +354,7 @@ export default function WizardPage() {
 
     // إنشاء الخطة في قاعدة البيانات إذا لم تكن موجودة
     let currentPlanId = planId;
-    let currentClassIds: number[] = classes.map((c, i) => c.classId || 0);
+    let currentClassIds: number[] = classes.map((c) => c.classId || 0);
     if (!currentPlanId) {
       try {
         const result = await createPlan.mutateAsync({
@@ -361,7 +364,7 @@ export default function WizardPage() {
         currentPlanId = result.planId;
         currentClassIds = result.classIds || [];
         setPlanId(currentPlanId);
-        // تحديث classIds في الـ state
+        // تحديث classIds في الـ state والانتظار حتى يتم التحديث
         setClasses(prev => prev.map((c, i) => ({ ...c, classId: result.classIds?.[i] || c.classId })));
       } catch (err) {
         toast.error("فشل إنشاء الخطة: " + String(err));
@@ -369,7 +372,12 @@ export default function WizardPage() {
       }
     }
 
-    const realClassId = currentClassIds[classIdx] || classes[classIdx].classId || classIdx + 1;
+    // الحصول على classId الحقيقي من الخادم - لا يستخدم fallback classIdx+1 أبداً
+    const realClassId = currentClassIds[classIdx] || classes[classIdx].classId;
+    if (!realClassId) {
+      toast.error("خطأ: لم يتم إنشاء الفصل بشكل صحيح. يرجى المحاولة مرة أخرى");
+      return;
+    }
 
     // جلب classId من الخادم
     setClasses(prev => prev.map((c, i) => i === classIdx ? { ...c, analysisStatus: "processing" } : c));
