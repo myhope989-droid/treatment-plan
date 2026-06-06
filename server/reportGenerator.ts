@@ -188,7 +188,7 @@ async function generatePageHTML(plan: any, cls: any): Promise<string> {
       <div class="ministry">وزارة التعليم</div>
       <div class="school-name">${plan.schoolName}</div>
     </div>
-    ${plan.schoolLogoUrl && plan.schoolLogoUrl.startsWith("data:") ? `<img src="${plan.schoolLogoUrl}" alt="شعار المدرسة"/>` : `<div style="width:58px;"></div>`}
+    ${plan.schoolLogoUrl ? `<img src="${plan.schoolLogoUrl}" alt="شعار المدرسة" style="max-width:58px;max-height:58px;object-fit:contain;"/>` : `<div style="width:58px;"></div>`}
   </div>
 
   <div class="title">الخطة العلاجية للصف ${plan.gradeLevel || cls.className || cls.classNumber}</div>

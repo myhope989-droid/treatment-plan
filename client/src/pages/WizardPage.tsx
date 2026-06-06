@@ -149,12 +149,34 @@ export default function WizardPage() {
         مرحباً بك في منشئ الخطة العلاجية الذكي.<br />
         سنساعدك على إنشاء خطة علاجية احترافية لطلابك في خطوات بسيطة.
       </p>
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 max-w-md mx-auto mt-4 mb-6 text-right">
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 max-w-md mx-auto mt-4 mb-3 text-right">
         <p className="text-amber-800 font-bold text-sm mb-2">ما ستحتاجه:</p>
         <ul className="text-amber-700 text-xs space-y-1">
           <li>• بيانات المعلم والمدرسة والمادة</li>
           <li>• صور كشوف الطلاب (صورة أو PDF)</li>
           <li>• روابط الاختبار أو المشروع (اختياري)</li>
+        </ul>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 max-w-md mx-auto mb-6 text-right">
+        <p className="text-blue-800 font-bold text-sm mb-2">📋 كيفية قراءة كشف الطلاب:</p>
+        <ul className="text-blue-700 text-xs space-y-2">
+          <li className="flex items-start gap-2">
+            <span className="font-bold text-base leading-none mt-0.5">○</span>
+            <span><strong>دائرة فارغة (O)</strong> أمام اسم الطالب = <strong>لم يحل الاختبار</strong></span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-bold text-base leading-none mt-0.5">Ø</span>
+            <span><strong>دائرة مع خط (Ø)</strong> أمام اسم الطالب = <strong>لم يسلّم المشروع</strong></span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-bold text-base leading-none mt-0.5">○Ø</span>
+            <span><strong>الرمزان معاً</strong> أمام اسم الطالب = <strong>لم يحل ولم يسلّم</strong></span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-bold text-base leading-none mt-0.5">—</span>
+            <span><strong>لا يوجد رمز</strong> أمام اسم الطالب = <strong>لا يحتاج خطة علاجية</strong></span>
+          </li>
         </ul>
       </div>
       <Button
@@ -377,18 +399,24 @@ export default function WizardPage() {
         currentPlanId = result.planId;
         currentClassIds = result.classIds || [];
         setPlanId(currentPlanId);
-        // تحديث classIds في الـ state والانتظار حتى يتم التحديث
+        // تحديث classIds في الـ state
         setClasses(prev => prev.map((c, i) => ({ ...c, classId: result.classIds?.[i] || c.classId })));
       } catch (err) {
         toast.error("فشل إنشاء الخطة: " + String(err));
         return;
       }
+    } else {
+      // الخطة موجودة - تأكد من أن classIds محدّثة من الـ state الحالي
+      currentClassIds = classes.map((c) => c.classId || 0);
     }
 
-    // الحصول على classId الحقيقي من الخادم - لا يستخدم fallback classIdx+1 أبداً
+    // الحصول على classId الحقيقي - يجب أن يكون من قاعدة البيانات
     const realClassId = currentClassIds[classIdx] || classes[classIdx].classId;
     if (!realClassId) {
-      toast.error("خطأ: لم يتم إنشاء الفصل بشكل صحيح. يرجى المحاولة مرة أخرى");
+      // إذا لم يوجد classId، أعد إنشاء الخطة من الصفر
+      toast.error("خطأ في تحديد الفصل. يرجى الضغط على 'السابق' ثم 'التالي' مرة أخرى");
+      setPlanId(null);
+      setClasses(prev => prev.map(c => ({ ...c, classId: undefined })));
       return;
     }
 
