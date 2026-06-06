@@ -1,23 +1,9 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
 import { BookOpen, FileText, History, ArrowLeft, Sparkles, CheckCircle } from "lucide-react";
 
 export default function Home() {
-  const { user, loading, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-          <p className="text-muted-foreground text-sm">جاري التحميل...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-amber-50 flex flex-col" dir="rtl">
@@ -33,17 +19,15 @@ export default function Home() {
               <p className="text-white/70 text-xs">وزارة التعليم - المملكة العربية السعودية</p>
             </div>
           </div>
-          {isAuthenticated && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20"
-              onClick={() => navigate("/history")}
-            >
-              <History className="w-4 h-4 ml-1" />
-              سجل الخطط
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+            onClick={() => navigate("/history")}
+          >
+            <History className="w-4 h-4 ml-1" />
+            سجل الخطط
+          </Button>
         </div>
       </header>
 
@@ -83,66 +67,49 @@ export default function Home() {
           </div>
 
           {/* CTA */}
-          {isAuthenticated ? (
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button
-                size="lg"
-                className="text-white px-8 py-3 text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
-                style={{background: "#92660a"}}
-                onClick={() => navigate("/wizard")}
-              >
-                <Sparkles className="w-5 h-5 ml-2" />
-                إنشاء خطة علاجية جديدة
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="px-8 py-3 text-base rounded-xl"
-                style={{borderColor: "#b8860b", color: "#92660a"}}
-                onClick={() => navigate("/history")}
-              >
-                <History className="w-5 h-5 ml-2" />
-                خططي السابقة
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-4">
-              <Button
-                size="lg"
-                className="text-white px-10 py-3 text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
-                style={{background: "#92660a"}}
-                onClick={() => window.location.href = getLoginUrl()}
-              >
-                <ArrowLeft className="w-5 h-5 ml-2" />
-                ابدأ الآن - تسجيل الدخول
-              </Button>
-              <p className="text-gray-400 text-xs">مجاني تماماً • لا يحتاج تثبيت</p>
-            </div>
-          )}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              size="lg"
+              className="text-white px-8 py-3 text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
+              style={{background: "#92660a"}}
+              onClick={() => navigate("/wizard")}
+            >
+              <Sparkles className="w-5 h-5 ml-2" />
+              إنشاء خطة علاجية جديدة
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="px-8 py-3 text-base rounded-xl"
+              style={{borderColor: "#b8860b", color: "#92660a"}}
+              onClick={() => navigate("/history")}
+            >
+              <History className="w-5 h-5 ml-2" />
+              خططي السابقة
+            </Button>
+          </div>
 
           {/* Steps preview */}
-          {isAuthenticated && (
-            <div className="mt-10 bg-white rounded-2xl p-6 shadow-sm border border-amber-100 text-right">
-              <h3 className="font-bold text-gray-700 mb-4 text-sm">كيف يعمل التطبيق؟</h3>
-              <div className="space-y-3">
-                {[
-                  "أدخل بيانات المعلم والمدرسة والمادة",
-                  "ارفع صور كشوف الطلاب لكل فصل",
-                  "الذكاء الاصطناعي يستخرج أسماء الطلاب تلقائياً",
-                  "أدخل روابط الاختبار والمشروع",
-                  "نزّل التقرير بصيغة PDF أو DOCX",
-                ].map((step, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{background: "#fef3c7"}}>
-                      <span className="font-bold text-xs" style={{color: "#92660a"}}>{i + 1}</span>
-                    </div>
-                    <span className="text-gray-600 text-sm">{step}</span>
-                    <CheckCircle className="w-4 h-4 mr-auto flex-shrink-0" style={{color: "#b8860b"}} />
+          <div className="mt-10 bg-white rounded-2xl p-6 shadow-sm border border-amber-100 text-right">
+            <h3 className="font-bold text-gray-700 mb-4 text-sm">كيف يعمل التطبيق؟</h3>
+            <div className="space-y-3">
+              {[
+                "أدخل بيانات المعلم والمدرسة والمادة",
+                "ارفع صور كشوف الطلاب لكل فصل",
+                "الذكاء الاصطناعي يستخرج أسماء الطلاب تلقائياً",
+                "أدخل روابط الاختبار والمشروع",
+                "نزّل التقرير بصيغة PDF أو DOCX",
+              ].map((step, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{background: "#fef3c7"}}>
+                    <span className="font-bold text-xs" style={{color: "#92660a"}}>{i + 1}</span>
                   </div>
-                ))}
-              </div>
+                  <span className="text-gray-600 text-sm">{step}</span>
+                  <CheckCircle className="w-4 h-4 mr-auto flex-shrink-0" style={{color: "#b8860b"}} />
+                </div>
+              ))}
             </div>
-          )}
+          </div>
         </div>
       </main>
 

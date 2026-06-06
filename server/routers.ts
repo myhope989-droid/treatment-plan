@@ -27,7 +27,7 @@ export const appRouter = router({
   // ===== Treatment Plans =====
   plan: router({
     // إنشاء خطة جديدة
-    create: protectedProcedure
+    create: publicProcedure
       .input(z.object({
         teacherName: z.string().min(1),
         schoolName: z.string().min(1),
@@ -42,7 +42,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const planId = await createTreatmentPlan({
-          userId: ctx.user.id,
+          userId: ctx.user?.id ?? 0,
           teacherName: input.teacherName,
           schoolName: input.schoolName,
           principalName: input.principalName,
@@ -73,7 +73,7 @@ export const appRouter = router({
       }),
 
     // تحديث بيانات الخطة
-    update: protectedProcedure
+    update: publicProcedure
       .input(z.object({
         planId: z.number(),
         examLink: z.string().optional(),
@@ -89,7 +89,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const plan = await getTreatmentPlanById(input.planId);
-        if (!plan || plan.userId !== ctx.user.id) throw new Error("غير مصرح");
+        if (!plan) throw new Error("الخطة غير موجودة");
         const { planId, schoolLogoBase64, ...data } = input;
         // حفظ شعار المدرسة إذا تم رفعه
         if (schoolLogoBase64) {
@@ -103,11 +103,11 @@ export const appRouter = router({
       }),
 
     // جلب خطة بالمعرف
-    getById: protectedProcedure
+    getById: publicProcedure
       .input(z.object({ planId: z.number() }))
       .query(async ({ ctx, input }) => {
         const plan = await getTreatmentPlanById(input.planId);
-        if (!plan || plan.userId !== ctx.user.id) throw new Error("غير مصرح");
+        if (!plan) throw new Error("الخطة غير موجودة");
         const classes = await getPlanClassesByPlanId(input.planId);
         const classesWithStudents = await Promise.all(
           classes.map(async (cls) => {
@@ -119,12 +119,12 @@ export const appRouter = router({
       }),
 
     // جلب جميع خطط المعلم
-    list: protectedProcedure.query(async ({ ctx }) => {
-      return getTreatmentPlansByUser(ctx.user.id);
+    list: publicProcedure.query(async ({ ctx }) => {
+      return getTreatmentPlansByUser(ctx.user?.id ?? 0);
     }),
 
     // رفع ملف كشف وتحليله
-    uploadAndAnalyze: protectedProcedure
+    uploadAndAnalyze: publicProcedure
       .input(z.object({
         planId: z.number(),
         classId: z.number(),
@@ -134,9 +134,9 @@ export const appRouter = router({
         planType: z.enum(["exam", "project", "both", "other"]),
       }))
       .mutation(async ({ ctx, input }) => {
-        // التحقق من الملكية
+        // التحقق من وجود الخطة
         const plan = await getTreatmentPlanById(input.planId);
-        if (!plan || plan.userId !== ctx.user.id) throw new Error("غير مصرح");
+        if (!plan) throw new Error("الخطة غير موجودة");
 
         // رفع الملف إلى التخزين
         const buffer = Buffer.from(input.fileBase64, "base64");
@@ -281,7 +281,7 @@ export const appRouter = router({
       }),
 
     // تحديث بيانات طالب
-    updateStudent: protectedProcedure
+    updateStudent: publicProcedure
       .input(z.object({
         studentId: z.number(),
         studentName: z.string().optional(),
@@ -295,7 +295,7 @@ export const appRouter = router({
       }),
 
     // إضافة طالب يدوياً
-    addStudent: protectedProcedure
+    addStudent: publicProcedure
       .input(z.object({
         planId: z.number(),
         classId: z.number(),
@@ -305,7 +305,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const plan = await getTreatmentPlanById(input.planId);
-        if (!plan || plan.userId !== ctx.user.id) throw new Error("غير مصرح");
+        if (!plan) throw new Error("الخطة غير موجودة");
         await createPlanStudents([{
           classId: input.classId,
           planId: input.planId,
@@ -318,11 +318,11 @@ export const appRouter = router({
       }),
 
     // توليد التقرير
-    generate: protectedProcedure
+    generate: publicProcedure
       .input(z.object({ planId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const plan = await getTreatmentPlanById(input.planId);
-        if (!plan || plan.userId !== ctx.user.id) throw new Error("غير مصرح");
+        if (!plan) throw new Error("الخطة غير موجودة");
 
         await updateTreatmentPlan(input.planId, { status: "processing" });
 

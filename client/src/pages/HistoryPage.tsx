@@ -1,9 +1,7 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { Home, Plus, Download, Eye, BookOpen, Calendar, Users, Loader2, FileText } from "lucide-react";
-import { getLoginUrl } from "@/const";
 
 function formatDate(d: Date | string) {
   const date = new Date(d);
@@ -24,27 +22,13 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 export default function HistoryPage() {
-  const { isAuthenticated, loading } = useAuth();
   const [, navigate] = useLocation();
-  const { data: plans, isLoading } = trpc.plan.list.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: plans, isLoading } = trpc.plan.list.useQuery();
 
-  if (loading || isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-50">
         <Loader2 className="w-8 h-8 animate-spin text-amber-700" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-50" dir="rtl">
-        <div className="bg-white rounded-2xl p-8 shadow-lg text-center max-w-sm">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">تسجيل الدخول مطلوب</h2>
-          <Button className="w-full bg-amber-800 hover:bg-amber-900" onClick={() => window.location.href = getLoginUrl()}>
-            تسجيل الدخول
-          </Button>
-        </div>
       </div>
     );
   }

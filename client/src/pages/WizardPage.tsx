@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback } from "react";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +11,6 @@ import {
   Trash2, Plus, Eye, Download, Home, X, Edit2, Save,
   History as HistoryIcon, Printer
 } from "lucide-react";
-import { getLoginUrl } from "@/const";
-
 // ===== Types =====
 type PlanType = "exam" | "project" | "both" | "other";
 type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -76,7 +73,6 @@ function StepIndicator({ current }: { current: Step }) {
 
 // ===== Main Wizard =====
 export default function WizardPage() {
-  const { user, isAuthenticated, loading } = useAuth();
   const [, navigate] = useLocation();
   const [step, setStep] = useState<Step>(0);
   const [planId, setPlanId] = useState<number | null>(null);
@@ -118,24 +114,7 @@ export default function WizardPage() {
   const updateStudent = trpc.plan.updateStudent.useMutation();
   const addStudent = trpc.plan.addStudent.useMutation();
 
-  // ===== Auth Guard =====
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-amber-700" /></div>;
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-50" dir="rtl">
-        <div className="bg-white rounded-2xl p-8 shadow-lg text-center max-w-sm">
-          <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-amber-700" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">تسجيل الدخول مطلوب</h2>
-          <p className="text-gray-500 text-sm mb-6">يجب تسجيل الدخول لإنشاء خطة علاجية</p>
-          <Button className="w-full bg-amber-800 hover:bg-amber-900" onClick={() => window.location.href = getLoginUrl()}>
-            تسجيل الدخول
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  // لا يوجد auth guard - التطبيق مفتوح للجميع
 
   // ===== Helpers =====
   const readFileAsBase64 = (file: File): Promise<{ base64: string; mimeType: string; preview?: string }> =>
