@@ -60,13 +60,13 @@ function StepIndicator({ current }: { current: Step }) {
         <div key={i} className="flex items-center gap-1">
           <div className={`flex flex-col items-center gap-0.5 transition-all ${i <= current ? "opacity-100" : "opacity-40"}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all
-              ${i < current ? "bg-emerald-600 text-white" : i === current ? "bg-emerald-700 text-white ring-2 ring-emerald-300 ring-offset-1" : "bg-gray-200 text-gray-500"}`}>
+              ${i < current ? "bg-amber-700 text-white" : i === current ? "bg-amber-800 text-white ring-2 ring-amber-300 ring-offset-1" : "bg-gray-200 text-gray-500"}`}>
               {i < current ? <CheckCircle className="w-4 h-4" /> : s.icon}
             </div>
-            <span className={`text-[9px] font-medium hidden sm:block ${i === current ? "text-emerald-700" : "text-gray-400"}`}>{s.label}</span>
+            <span className={`text-[9px] font-medium hidden sm:block ${i === current ? "text-amber-800" : "text-gray-400"}`}>{s.label}</span>
           </div>
           {i < STEPS.length - 1 && (
-            <div className={`w-4 sm:w-8 h-0.5 transition-all ${i < current ? "bg-emerald-500" : "bg-gray-200"}`} />
+            <div className={`w-4 sm:w-8 h-0.5 transition-all ${i < current ? "bg-amber-500" : "bg-gray-200"}`} />
           )}
         </div>
       ))}
@@ -116,17 +116,17 @@ export default function WizardPage() {
   const addStudent = trpc.plan.addStudent.useMutation();
 
   // ===== Auth Guard =====
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-600" /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-amber-700" /></div>;
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-yellow-50" dir="rtl">
         <div className="bg-white rounded-2xl p-8 shadow-lg text-center max-w-sm">
-          <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-emerald-600" />
+          <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <User className="w-8 h-8 text-amber-700" />
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">تسجيل الدخول مطلوب</h2>
           <p className="text-gray-500 text-sm mb-6">يجب تسجيل الدخول لإنشاء خطة علاجية</p>
-          <Button className="w-full bg-emerald-700 hover:bg-emerald-800" onClick={() => window.location.href = getLoginUrl()}>
+          <Button className="w-full bg-amber-800 hover:bg-amber-900" onClick={() => window.location.href = getLoginUrl()}>
             تسجيل الدخول
           </Button>
         </div>
@@ -167,9 +167,9 @@ export default function WizardPage() {
         مرحباً بك في منشئ الخطة العلاجية الذكي.<br />
         سنساعدك على إنشاء خطة علاجية احترافية لطلابك في خطوات بسيطة.
       </p>
-      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 max-w-md mx-auto mt-4 mb-6 text-right">
-        <p className="text-emerald-700 font-bold text-sm mb-2">ما ستحتاجه:</p>
-        <ul className="text-emerald-600 text-xs space-y-1">
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 max-w-md mx-auto mt-4 mb-6 text-right">
+        <p className="text-amber-800 font-bold text-sm mb-2">ما ستحتاجه:</p>
+        <ul className="text-amber-700 text-xs space-y-1">
           <li>• بيانات المعلم والمدرسة والمادة</li>
           <li>• صور كشوف الطلاب (صورة أو PDF)</li>
           <li>• روابط الاختبار أو المشروع (اختياري)</li>
@@ -177,7 +177,7 @@ export default function WizardPage() {
       </div>
       <Button
         size="lg"
-        className="bg-emerald-700 hover:bg-emerald-800 text-white px-10 py-3 text-base font-bold rounded-xl"
+        className="bg-amber-800 hover:bg-amber-900 text-white px-10 py-3 text-base font-bold rounded-xl"
         onClick={() => setStep(1)}
       >
         ابدأ الآن
@@ -238,7 +238,7 @@ export default function WizardPage() {
               key={opt.value}
               onClick={() => setPlanType(opt.value as PlanType)}
               className={`p-3 rounded-xl border-2 text-center transition-all text-sm font-medium
-                ${planType === opt.value ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "border-gray-200 text-gray-600 hover:border-emerald-300"}`}
+                ${planType === opt.value ? "border-amber-700 bg-amber-50 text-amber-800" : "border-gray-200 text-gray-600 hover:border-amber-300"}`}
             >
               <div className="text-xl mb-1">{opt.icon}</div>
               {opt.label}
@@ -260,7 +260,7 @@ export default function WizardPage() {
           <ArrowRight className="w-4 h-4 ml-1" /> السابق
         </Button>
         <Button
-          className="bg-emerald-700 hover:bg-emerald-800 text-white"
+          className="bg-amber-800 hover:bg-amber-900 text-white"
           onClick={() => {
             if (!teacherName || !schoolName || !principalName || !subject) {
               toast.error("يرجى ملء جميع الحقول المطلوبة");
@@ -297,7 +297,7 @@ export default function WizardPage() {
 
         {schoolLogoUrl ? (
           <div className="text-center">
-            <img src={schoolLogoUrl} alt="شعار المدرسة" className="w-32 h-32 object-contain mx-auto rounded-2xl border-2 border-emerald-200 p-2 mb-4" />
+            <img src={schoolLogoUrl} alt="شعار المدرسة" className="w-32 h-32 object-contain mx-auto rounded-2xl border-2 border-amber-200 p-2 mb-4" />
             <Button variant="outline" size="sm" onClick={() => { setSchoolLogoBase64(""); setSchoolLogoUrl(""); }}>
               <Trash2 className="w-4 h-4 ml-1" /> حذف الشعار
             </Button>
@@ -307,14 +307,14 @@ export default function WizardPage() {
             className="upload-zone p-10 text-center cursor-pointer rounded-2xl"
             onClick={() => logoInputRef.current?.click()}
           >
-            <School className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
+            <School className="w-12 h-12 text-amber-400 mx-auto mb-3" />
             <p className="text-gray-600 font-medium mb-1">انقر لرفع شعار المدرسة</p>
             <p className="text-gray-400 text-xs">PNG, JPG, SVG</p>
           </div>
         )}
 
-        <div className="mt-4 bg-emerald-50 rounded-xl p-3 text-center">
-          <p className="text-emerald-700 text-xs">
+        <div className="mt-4 bg-amber-50 rounded-xl p-3 text-center">
+          <p className="text-amber-800 text-xs">
             ✅ شعار وزارة التعليم سيُضاف تلقائياً في التقرير
           </p>
         </div>
@@ -326,7 +326,7 @@ export default function WizardPage() {
         </Button>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setStep(3)}>تخطي</Button>
-          <Button className="bg-emerald-700 hover:bg-emerald-800 text-white" onClick={() => setStep(3)}>
+          <Button className="bg-amber-800 hover:bg-amber-900 text-white" onClick={() => setStep(3)}>
             التالي <ArrowLeft className="w-4 h-4 mr-1" />
           </Button>
         </div>
@@ -421,11 +421,11 @@ export default function WizardPage() {
             key={i}
             onClick={() => setCurrentClassIdx(i)}
             className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border
-              ${currentClassIdx === i ? "bg-emerald-700 text-white border-emerald-700" : "border-gray-200 text-gray-600 hover:border-emerald-300"}
-              ${cls.analysisStatus === "done" ? "ring-1 ring-emerald-400" : ""}`}
+              ${currentClassIdx === i ? "bg-amber-800 text-white border-amber-800" : "border-gray-200 text-gray-600 hover:border-amber-300"}
+              ${cls.analysisStatus === "done" ? "ring-1 ring-amber-400" : ""}`}
           >
             فصل {cls.classNumber}
-            {cls.analysisStatus === "done" && <CheckCircle className="w-3 h-3 inline mr-1 text-emerald-300" />}
+            {cls.analysisStatus === "done" && <CheckCircle className="w-3 h-3 inline mr-1 text-amber-300" />}
             {cls.analysisStatus === "processing" && <Loader2 className="w-3 h-3 inline mr-1 animate-spin" />}
           </button>
         ))}
@@ -455,7 +455,7 @@ export default function WizardPage() {
               e.dataTransfer.files && handleFileUpload(currentClassIdx, e.dataTransfer.files);
             }}
           >
-            <Upload className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+            <Upload className="w-8 h-8 text-amber-400 mx-auto mb-2" />
             <p className="text-gray-600 text-sm font-medium">اسحب الملفات هنا أو انقر للرفع</p>
             <p className="text-gray-400 text-xs mt-1">صور (JPG, PNG) أو PDF • يمكن رفع أكثر من ملف</p>
           </div>
@@ -486,7 +486,7 @@ export default function WizardPage() {
 
           {/* Analyze button */}
           <Button
-            className="w-full bg-emerald-700 hover:bg-emerald-800 text-white"
+            className="w-full bg-amber-800 hover:bg-amber-900 text-white"
             disabled={classes[currentClassIdx].files.length === 0 || classes[currentClassIdx].analysisStatus === "processing"}
             onClick={() => analyzeClass(currentClassIdx)}
           >
@@ -499,8 +499,8 @@ export default function WizardPage() {
 
           {/* Results preview */}
           {classes[currentClassIdx].analysisStatus === "done" && (
-            <div className="mt-3 bg-emerald-50 rounded-xl p-3">
-              <p className="text-emerald-700 font-bold text-sm mb-2">
+            <div className="mt-3 bg-amber-50 rounded-xl p-3">
+              <p className="text-amber-800 font-bold text-sm mb-2">
                 ✅ تم استخراج {classes[currentClassIdx].students.length} طالب
               </p>
               <div className="max-h-32 overflow-y-auto space-y-1">
@@ -524,7 +524,7 @@ export default function WizardPage() {
           <ArrowRight className="w-4 h-4 ml-1" /> السابق
         </Button>
         <Button
-          className="bg-emerald-700 hover:bg-emerald-800 text-white"
+          className="bg-amber-800 hover:bg-amber-900 text-white"
           onClick={() => setStep(4)}
         >
           التالي <ArrowLeft className="w-4 h-4 mr-1" />
@@ -543,7 +543,7 @@ export default function WizardPage() {
 
       {classes.map((cls, ci) => (
         <div key={ci} className="mb-4 border border-gray-200 rounded-xl overflow-hidden">
-          <div className="bg-emerald-700 text-white px-4 py-2 flex items-center justify-between">
+          <div className="bg-amber-800 text-white px-4 py-2 flex items-center justify-between">
             <span className="font-bold text-sm">الفصل {cls.classNumber} - {cls.students.length} طالب</span>
             <button
               onClick={() => {
@@ -573,7 +573,7 @@ export default function WizardPage() {
             <div className="divide-y divide-gray-100">
               {cls.students.map((s, si) => (
                 <div key={si} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50">
-                  <span className="text-emerald-600 font-bold text-xs w-5">{si + 1}</span>
+                  <span className="text-amber-700 font-bold text-xs w-5">{si + 1}</span>
                   <span className="flex-1 text-sm text-gray-700">{s.studentName}</span>
                   <div className="flex gap-1">
                     {(planType === "exam" || planType === "both") && (
@@ -625,7 +625,7 @@ export default function WizardPage() {
           <ArrowRight className="w-4 h-4 ml-1" /> السابق
         </Button>
         <Button
-          className="bg-emerald-700 hover:bg-emerald-800 text-white"
+          className="bg-amber-800 hover:bg-amber-900 text-white"
           onClick={async () => {
             // حفظ تعديلات الطلاب في DB إذا كان الطلاب لديهم studentId
             const savePromises: Promise<any>[] = [];
@@ -666,7 +666,7 @@ export default function WizardPage() {
         {(planType === "exam" || planType === "both") && (
           <div className="space-y-2">
             <label className="block text-sm font-semibold text-gray-700">
-              <Link2 className="w-4 h-4 inline ml-1 text-emerald-600" />
+              <Link2 className="w-4 h-4 inline ml-1 text-amber-700" />
               رابط اختبار {subject}
             </label>
             <Input
@@ -691,7 +691,7 @@ export default function WizardPage() {
         {(planType === "project" || planType === "both") && (
           <div className="space-y-2">
             <label className="block text-sm font-semibold text-gray-700">
-              <Link2 className="w-4 h-4 inline ml-1 text-emerald-600" />
+              <Link2 className="w-4 h-4 inline ml-1 text-amber-700" />
               رابط تسليم مشروع {subject}
             </label>
             <Input
@@ -731,7 +731,7 @@ export default function WizardPage() {
           <ArrowRight className="w-4 h-4 ml-1" /> السابق
         </Button>
         <Button
-          className="bg-emerald-700 hover:bg-emerald-800 text-white"
+          className="bg-amber-800 hover:bg-amber-900 text-white"
           onClick={async () => {
             setIsGenerating(true);
             try {
@@ -814,7 +814,7 @@ export default function WizardPage() {
           <Home className="w-4 h-4 ml-1" /> الصفحة الرئيسية
         </Button>
         <Button
-          className="bg-emerald-700 hover:bg-emerald-800 text-white"
+          className="bg-amber-800 hover:bg-amber-900 text-white"
           onClick={() => {
             setStep(0); setPlanId(null); setTeacherName(""); setSchoolName("");
             setPrincipalName(""); setSubject(""); setClasses([]);
@@ -829,7 +829,7 @@ export default function WizardPage() {
 
   // ===== Render =====
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-yellow-50" dir="rtl">
       {/* Header */}
       <header className="green-header text-white shadow-md">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -850,12 +850,12 @@ export default function WizardPage() {
 
       <div className="max-w-3xl mx-auto px-4 py-4">
         {/* Step indicator */}
-        <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 mb-4 px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-amber-100 mb-4 px-4">
           <StepIndicator current={step} />
         </div>
 
         {/* Step content */}
-        <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-amber-100 p-6">
           {step === 0 && renderStep0()}
           {step === 1 && renderStep1()}
           {step === 2 && renderStep2()}

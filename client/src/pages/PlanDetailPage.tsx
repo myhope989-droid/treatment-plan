@@ -18,7 +18,7 @@ export default function PlanDetailPage() {
   if (loading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-amber-700" />
       </div>
     );
   }
@@ -37,7 +37,7 @@ export default function PlanDetailPage() {
   const totalStudents = plan.classes?.reduce((sum: number, c: any) => sum + (c.students?.length || 0), 0) || 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-yellow-50" dir="rtl">
       <header className="green-header text-white shadow-md">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -57,7 +57,7 @@ export default function PlanDetailPage() {
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         {/* Summary card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-5">
+        <div className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5">
           <h2 className="text-xl font-bold text-gray-800 mb-4">{plan.schoolName}</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
             {[
@@ -69,7 +69,7 @@ export default function PlanDetailPage() {
               { label: "الفصل الدراسي", value: plan.academicYear || "", icon: FileText },
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-2">
-                <item.icon className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                <item.icon className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-gray-400 text-xs">{item.label}</p>
                   <p className="font-semibold text-gray-700">{item.value}</p>
@@ -81,7 +81,7 @@ export default function PlanDetailPage() {
           {(plan.examLink || plan.projectLink) && (
             <div className="mt-4 pt-4 border-t border-gray-100">
               <div className="flex items-center gap-2 mb-2">
-                <Link2 className="w-4 h-4 text-emerald-500" />
+                <Link2 className="w-4 h-4 text-amber-500" />
                 <span className="font-semibold text-gray-700 text-sm">الروابط</span>
               </div>
               <div className="space-y-1 text-xs">
@@ -94,7 +94,7 @@ export default function PlanDetailPage() {
 
         {/* Download buttons */}
         {plan.status === "completed" && (plan.pdfUrl || plan.docxUrl) && (
-          <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-5">
+          <div className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5">
             <h3 className="font-bold text-gray-700 mb-3">تنزيل التقرير</h3>
             <div className="flex gap-3">
               {plan.pdfUrl && (
@@ -117,8 +117,8 @@ export default function PlanDetailPage() {
 
         {/* Classes & Students */}
         {plan.classes?.map((cls: any) => (
-          <div key={cls.id} className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden">
-            <div className="bg-emerald-700 text-white px-4 py-2 flex items-center justify-between">
+          <div key={cls.id} className="bg-white rounded-2xl shadow-sm border border-amber-100 overflow-hidden">
+            <div className="bg-amber-800 text-white px-4 py-2 flex items-center justify-between">
               <span className="font-bold text-sm">الفصل {cls.classNumber}</span>
               <span className="text-white/70 text-xs">{cls.students?.length || 0} طالب</span>
             </div>
@@ -128,7 +128,7 @@ export default function PlanDetailPage() {
               <div className="divide-y divide-gray-100">
                 {cls.students?.map((s: any, si: number) => (
                   <div key={s.id} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
-                    <span className="text-emerald-600 font-bold text-xs w-5">{si + 1}</span>
+                    <span className="text-amber-700 font-bold text-xs w-5">{si + 1}</span>
                     <span className="flex-1 text-sm text-gray-700">{s.studentName}</span>
                     <div className="flex gap-1">
                       {s.examStatus === "no_exam" && (
