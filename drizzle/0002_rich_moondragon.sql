@@ -1,0 +1,1 @@
+ALTER TABLE `plan_classes` MODIFY COLUMN `uploadedFiles` text DEFAULT ('[]');
