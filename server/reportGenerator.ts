@@ -4,40 +4,40 @@ import {
   TextRun, AlignmentType, WidthType, BorderStyle, ShadingType,
   ImageRun, HeadingLevel, VerticalAlign, convertInchesToTwip
 } from "docx";
-import puppeteer from "puppeteer-core";
+import PDFDocument from "pdfkit";
 import * as fs from "fs";
 import * as path from "path";
+import { storageGetSignedUrl } from "./storage";
 
-// اكتشاف مسار Chromium تلقائياً - يدعم sandbox وبيئة الإنتاج
-async function getChromiumExecutablePath(): Promise<string> {
-  // أولاً: تجربة @sparticuz/chromium (يعمل في بيئة الإنتاج)
-  try {
-    const chromiumPkg = await import("@sparticuz/chromium");
-    const chromium = chromiumPkg.default || chromiumPkg;
-    if (typeof chromium.executablePath === "function") {
-      const execPath = await chromium.executablePath();
-      if (execPath && fs.existsSync(execPath)) {
-        return execPath;
-      }
-    }
-  } catch {
-    // @sparticuz/chromium غير متاح
+// مفاتيح الخطوط العربية في S3
+const FONT_REGULAR_KEY = "NotoSansArabic-Regular_158bb32c.ttf";
+const FONT_BOLD_KEY = "NotoSansArabic-Bold_e06b9419.ttf";
+
+// cache للخطوط في الذاكرة (تُحمَّل مرة واحدة)
+let fontRegularBuffer: Buffer | null = null;
+let fontBoldBuffer: Buffer | null = null;
+
+async function loadFontBuffer(key: string, localName: string): Promise<Buffer> {
+  // أولاً: من الملف المحلي (sandbox / dev)
+  const localPath = path.join(process.cwd(), "server", "assets", localName);
+  if (fs.existsSync(localPath)) {
+    return fs.readFileSync(localPath);
   }
+  // ثانياً: من S3 (بيئة الإنتاج)
+  const url = await storageGetSignedUrl(key);
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`فشل تحميل الخط: ${resp.status}`);
+  return Buffer.from(await resp.arrayBuffer());
+}
 
-  // ثانياً: المسارات الشائعة
-  const candidates = [
-    "/usr/bin/chromium",
-    "/usr/bin/chromium-browser",
-    "/usr/bin/google-chrome",
-    "/usr/bin/google-chrome-stable",
-    "/usr/lib/chromium/chromium",
-    "/snap/bin/chromium",
-  ];
-  for (const p of candidates) {
-    if (fs.existsSync(p)) return p;
+async function getFonts(): Promise<{ regular: Buffer; bold: Buffer }> {
+  if (!fontRegularBuffer) {
+    fontRegularBuffer = await loadFontBuffer(FONT_REGULAR_KEY, "NotoSansArabic-Regular.ttf");
   }
-
-  throw new Error("لم يتم العثور على Chromium. يرجى التواصل مع الدعم الفني.");
+  if (!fontBoldBuffer) {
+    fontBoldBuffer = await loadFontBuffer(FONT_BOLD_KEY, "NotoSansArabic-Bold.ttf");
+  }
+  return { regular: fontRegularBuffer, bold: fontBoldBuffer };
 }
 
 const MOE_LOGO_PATH = path.join(process.cwd(), "server", "assets", "moe_logo.png");
@@ -293,74 +293,327 @@ async function generatePageHTML(plan: any, cls: any): Promise<string> {
 </html>`;
 }
 
-// توليد PDF متعدد الصفحات
+// توليد PDF باستخدام PDFKit (بدون Chromium - يعمل في بيئة الإنتاج)
 export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
-  const executablePath = await getChromiumExecutablePath();
-  const browser = await puppeteer.launch({
-    executablePath,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--single-process", "--no-zygote"],
-    headless: true,
+  const fonts = await getFonts();
+  const classesWithStudents = (plan.classes || []).filter((c: any) => c.students && c.students.length > 0);
+  const allClasses = classesWithStudents.length > 0 ? classesWithStudents : [{ classNumber: 1, students: [] }];
+
+  // تحميل شعار وزارة التعليم
+  const moeLogoBuffer = fs.existsSync(MOE_LOGO_PATH) ? fs.readFileSync(MOE_LOGO_PATH) : null;
+
+  // تحميل شعار المدرسة (إن وجد)
+  let schoolLogoBuffer: Buffer | null = null;
+  if (plan.schoolLogoUrl) {
+    try {
+      const logoUrl = plan.schoolLogoUrl.startsWith("/manus-storage/")
+        ? await storageGetSignedUrl(plan.schoolLogoUrl.replace("/manus-storage/", ""))
+        : plan.schoolLogoUrl;
+      const resp = await fetch(logoUrl);
+      if (resp.ok) schoolLogoBuffer = Buffer.from(await resp.arrayBuffer());
+    } catch { /* تجاهل خطأ الشعار */ }
+  }
+
+  // QR codes
+  const qrExamDataUrl = plan.examLink ? await generateQRBase64(plan.examLink) : "";
+  const qrProjectDataUrl = plan.projectLink ? await generateQRBase64(plan.projectLink) : "";
+
+  // تحويل QR data URL إلى Buffer
+  async function qrToBuffer(dataUrl: string): Promise<Buffer | null> {
+    if (!dataUrl) return null;
+    const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+    return Buffer.from(base64, "base64");
+  }
+  const qrExamBuf = await qrToBuffer(qrExamDataUrl);
+  const qrProjectBuf = await qrToBuffer(qrProjectDataUrl);
+
+  const notes = plan.teacherNotes || DEFAULT_NOTES;
+  const initialActionsText = plan.initialActions || "";
+
+  // إعدادات الصفحة A4
+  const PAGE_W = 595.28; // A4 width in points
+  const PAGE_H = 841.89; // A4 height in points
+  const MARGIN = 22;
+  const CONTENT_W = PAGE_W - MARGIN * 2;
+
+  // ألوان
+  const GREEN = "#1a7a5e";
+  const DARK_GREEN = "#0d5c45";
+  const WHITE = "#ffffff";
+  const LIGHT_BG = "#f0faf6";
+  const RED = "#c0392b";
+  const GOLD = "#b8860b";
+  const GOLD_BG = "#fffbeb";
+  const GRAY = "#888888";
+  const BORDER = "#cccccc";
+
+  const doc = new PDFDocument({
+    size: "A4",
+    margin: MARGIN,
+    info: { Title: `الخطة العلاجية - ${plan.schoolName}`, Author: plan.teacherName },
   });
 
-  try {
-    // جمع HTML لجميع الفصول
-    const classesWithStudents = (plan.classes || []).filter((c: any) => c.students && c.students.length > 0);
+  doc.registerFont("Arabic", fonts.regular);
+  doc.registerFont("ArabicBold", fonts.bold);
 
-    if (classesWithStudents.length === 0) {
-      // صفحة فارغة
-      const page = await browser.newPage();
-      const html = await generatePageHTML(plan, { classNumber: 1, students: [] });
-      await page.setContent(html, { waitUntil: "load" });
-      await new Promise(r => setTimeout(r, 500));
-      const pdf = await page.pdf({ format: "A4", printBackground: true });
-      await page.close();
-      return Buffer.from(pdf);
-    }
+  const chunks: Buffer[] = [];
+  doc.on("data", (c: Buffer) => chunks.push(c));
 
-    if (classesWithStudents.length === 1) {
-      const page = await browser.newPage();
-      const html = await generatePageHTML(plan, classesWithStudents[0]);
-      await page.setContent(html, { waitUntil: "load" });
-      await new Promise(r => setTimeout(r, 600));
-      const pdf = await page.pdf({ format: "A4", printBackground: true });
-      await page.close();
-      return Buffer.from(pdf);
-    }
-
-    // متعدد الصفحات: نبني HTML يحتوي على جميع الصفحات
-    const pages: string[] = [];
-    for (const cls of classesWithStudents) {
-      const html = await generatePageHTML(plan, cls);
-      // استخراج محتوى body فقط
-      const bodyContent = html.replace(/[\s\S]*<body>/, "").replace(/<\/body>[\s\S]*/, "");
-      const styleContent = html.match(/<style>([\s\S]*?)<\/style>/)?.[1] || "";
-      pages.push(JSON.stringify({ body: bodyContent, style: styleContent }));
-    }
-
-    // بناء HTML موحد
-    const firstPage = JSON.parse(pages[0]);
-    let combinedHtml = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><style>
-      @page { size: A4 portrait; margin: 6mm 8mm 5mm 8mm; }
-      .page-wrapper { width: 210mm; min-height: 297mm; page-break-after: always; padding: 0; box-sizing: border-box; }
-      .page-wrapper:last-child { page-break-after: avoid; }
-      ${firstPage.style}
-    </style></head><body>`;
-
-    for (let i = 0; i < pages.length; i++) {
-      const p = JSON.parse(pages[i]);
-      combinedHtml += `<div class="page-wrapper">${p.body}</div>`;
-    }
-    combinedHtml += "</body></html>";
-
-    const page = await browser.newPage();
-    await page.setContent(combinedHtml, { waitUntil: "load" });
-    await new Promise(r => setTimeout(r, 800));
-    const pdf = await page.pdf({ format: "A4", printBackground: true });
-    await page.close();
-    return Buffer.from(pdf);
-  } finally {
-    await browser.close();
+  // دالة مساعدة: رسم نص RTL
+  function drawRTLText(text: string, x: number, y: number, opts: any = {}) {
+    const { size = 8, bold = false, color = "#1a1a1a", align = "right", width = CONTENT_W } = opts;
+    doc.font(bold ? "ArabicBold" : "Arabic")
+      .fontSize(size)
+      .fillColor(color)
+      .text(text, x, y, { width, align, lineBreak: false });
   }
+
+  // دالة رسم مستطيل ملون
+  function fillRect(x: number, y: number, w: number, h: number, color: string) {
+    doc.rect(x, y, w, h).fill(color);
+  }
+
+  // دالة رسم حدود مستطيل
+  function strokeRect(x: number, y: number, w: number, h: number, color: string, lw = 0.5) {
+    doc.rect(x, y, w, h).lineWidth(lw).stroke(color);
+  }
+
+  for (let ci = 0; ci < allClasses.length; ci++) {
+    const cls = allClasses[ci];
+    const students: any[] = cls.students || [];
+    if (ci > 0) doc.addPage();
+
+    let y = MARGIN;
+
+    // ===== الرأس =====
+    const headerH = 56;
+    // خط سفلي للرأس
+    doc.rect(MARGIN, y + headerH, CONTENT_W, 2).fill(GREEN);
+
+    // شعار وزارة التعليم (يسار)
+    if (moeLogoBuffer) {
+      doc.image(moeLogoBuffer, MARGIN, y + 3, { width: 48, height: 42 });
+    } else {
+      doc.font("ArabicBold").fontSize(7).fillColor(GREEN)
+        .text("وزارةالتعليم", MARGIN, y + 18, { width: 48, align: "center" });
+    }
+
+    // شعار المدرسة (يمين)
+    if (schoolLogoBuffer) {
+      doc.image(schoolLogoBuffer, PAGE_W - MARGIN - 50, y + 3, { width: 48, height: 42 });
+    }
+
+    // نص الرأس (وسط)
+    const centerX = MARGIN + 55;
+    const centerW = CONTENT_W - 110;
+    doc.font("Arabic").fontSize(6.5).fillColor(GRAY)
+      .text("المملكة العربية السعودية", centerX, y + 4, { width: centerW, align: "center" });
+    doc.font("ArabicBold").fontSize(9).fillColor(GREEN)
+      .text("وزارة التعليم", centerX, y + 16, { width: centerW, align: "center" });
+    doc.font("ArabicBold").fontSize(12).fillColor("#1a1a1a")
+      .text(plan.schoolName || "", centerX, y + 28, { width: centerW, align: "center" });
+
+    y += headerH + 6;
+
+    // ===== عنوان الخطة =====
+    fillRect(MARGIN, y, CONTENT_W, 22, GREEN);
+    doc.font("ArabicBold").fontSize(14).fillColor(WHITE)
+      .text(`الخطة العلاجية للصف ${plan.gradeLevel || cls.className || cls.classNumber}`, MARGIN, y + 4, { width: CONTENT_W, align: "center" });
+    y += 26;
+
+    // ===== صف المعلومات =====
+    const infoH = 22;
+    const infoBoxW = CONTENT_W / 4;
+    const infoItems = [
+      { label: "الفصل الدراسي", value: plan.academicYear || "الثاني / 1446هـ" },
+      { label: "الصف والفصل", value: `${plan.gradeLevel || "الصف"} / ${cls.classNumber}` },
+      { label: "المادة الدراسية", value: plan.subject || "" },
+      { label: "التاريخ", value: "...... / ...... / ....هـ" },
+    ];
+    for (let i = 0; i < 4; i++) {
+      const bx = MARGIN + (3 - i) * infoBoxW; // RTL order
+      strokeRect(bx, y, infoBoxW, infoH, GREEN, 0.8);
+      doc.font("ArabicBold").fontSize(6).fillColor(GREEN)
+        .text(infoItems[i].label, bx + 2, y + 3, { width: infoBoxW - 4, align: "center" });
+      doc.font("ArabicBold").fontSize(7.5).fillColor("#1a1a1a")
+        .text(infoItems[i].value, bx + 2, y + 12, { width: infoBoxW - 4, align: "center" });
+    }
+    y += infoH + 4;
+
+    // ===== جدول الطلاب =====
+    // عناوين الجدول
+    const cols = [
+      { label: "م", w: 18 },
+      { label: "اسم الطالب", w: 120 },
+      { label: "رقم الجلسة", w: 45 },
+      { label: "الاختبار", w: 45 },
+      { label: "سبب عدم حل الاختبار", w: 0 },
+      { label: "المشروع", w: 45 },
+      { label: "سبب عدم تسليم المشروع", w: 0 },
+      { label: "الإجراء المتخذ", w: 55 },
+    ];
+    // حساب عرض الأعمدة المرنة
+    const fixedW = cols.reduce((s, c) => s + c.w, 0);
+    const flexW = (CONTENT_W - fixedW) / 2;
+    const colWidths = cols.map(c => c.w === 0 ? flexW : c.w);
+
+    const rowH = 14;
+    const headerRowH = 18;
+    fillRect(MARGIN, y, CONTENT_W, headerRowH, GREEN);
+    // رسم عناوين الجدول (RTL)
+    let cx = MARGIN + CONTENT_W;
+    for (let i = 0; i < cols.length; i++) {
+      cx -= colWidths[i];
+      doc.font("ArabicBold").fontSize(6.5).fillColor(WHITE)
+        .text(cols[i].label, cx + 1, y + 5, { width: colWidths[i] - 2, align: "center", lineBreak: false });
+      if (i < cols.length - 1) {
+        doc.moveTo(cx, y).lineTo(cx, y + headerRowH).lineWidth(0.5).stroke(DARK_GREEN);
+      }
+    }
+    y += headerRowH;
+
+    // صفوف الطلاب
+    for (let si = 0; si < students.length; si++) {
+      const s = students[si];
+      const rowBg = si % 2 === 0 ? WHITE : LIGHT_BG;
+      fillRect(MARGIN, y, CONTENT_W, rowH, rowBg);
+      strokeRect(MARGIN, y, CONTENT_W, rowH, BORDER, 0.3);
+
+      const examText = s.examStatus === "no_exam" ? "لم يحل" : "حل ✓";
+      const projText = s.projectStatus === "not_submitted" ? "لم يسلّم" : "سلّم ✓";
+      const examColor = s.examStatus === "no_exam" ? RED : GREEN;
+      const projColor = s.projectStatus === "not_submitted" ? RED : GREEN;
+
+      const rowData = [
+        { text: String(si + 1), color: GREEN, bold: true },
+        { text: s.studentName || "", color: "#1a1a1a", align: "right" },
+        { text: "", color: "#1a1a1a" },
+        { text: examText, color: examColor, bold: true },
+        { text: "", color: "#1a1a1a" },
+        { text: projText, color: projColor, bold: true },
+        { text: "", color: "#1a1a1a" },
+        { text: "", color: "#1a1a1a" },
+      ];
+
+      cx = MARGIN + CONTENT_W;
+      for (let i = 0; i < rowData.length; i++) {
+        cx -= colWidths[i];
+        const rd = rowData[i] as any;
+        if (rd.text) {
+          doc.font(rd.bold ? "ArabicBold" : "Arabic")
+            .fontSize(6.5).fillColor(rd.color || "#1a1a1a")
+            .text(rd.text, cx + 1, y + 4, { width: colWidths[i] - 2, align: rd.align || "center", lineBreak: false });
+        }
+        if (i < rowData.length - 1) {
+          doc.moveTo(cx, y).lineTo(cx, y + rowH).lineWidth(0.3).stroke(BORDER);
+        }
+      }
+      doc.moveTo(MARGIN, y + rowH).lineTo(MARGIN + CONTENT_W, y + rowH).lineWidth(0.3).stroke(BORDER);
+      y += rowH;
+    }
+    if (students.length === 0) {
+      fillRect(MARGIN, y, CONTENT_W, rowH, "#f9f9f9");
+      doc.font("Arabic").fontSize(7).fillColor(GRAY)
+        .text("لا يوجد طلاب", MARGIN, y + 4, { width: CONTENT_W, align: "center" });
+      y += rowH;
+    }
+    strokeRect(MARGIN, y - (students.length || 1) * rowH - headerRowH, CONTENT_W, (students.length || 1) * rowH + headerRowH, GREEN, 0.8);
+    y += 4;
+
+    // ===== الإجراءات الأولية =====
+    if (initialActionsText) {
+      strokeRect(MARGIN, y, CONTENT_W, 0, GOLD, 0.8);
+      fillRect(MARGIN, y, CONTENT_W, 12, GOLD_BG);
+      doc.font("ArabicBold").fontSize(7).fillColor(GOLD)
+        .text("✅ الإجراءات الأولية المنفذة قبل الخطة العلاجية:", MARGIN + 4, y + 3, { width: CONTENT_W - 8, align: "right" });
+      y += 12;
+      const actH = doc.heightOfString(initialActionsText, { width: CONTENT_W - 8, align: "right" }) + 6;
+      fillRect(MARGIN, y, CONTENT_W, actH, GOLD_BG);
+      strokeRect(MARGIN, y - 12, CONTENT_W, actH + 12, GOLD, 0.8);
+      doc.font("Arabic").fontSize(6.5).fillColor("#92660a")
+        .text(initialActionsText, MARGIN + 4, y + 3, { width: CONTENT_W - 8, align: "right" });
+      y += actH + 4;
+    }
+
+    // ===== ملاحظات المعلم =====
+    const notesH = doc.heightOfString(notes, { width: CONTENT_W - 8, align: "right" }) + 18;
+    strokeRect(MARGIN, y, CONTENT_W, notesH, GREEN, 0.8);
+    doc.font("ArabicBold").fontSize(7).fillColor(GREEN)
+      .text("ملاحظات المعلم / الإجراءات العلاجية الأولية المنفذة:", MARGIN + 4, y + 3, { width: CONTENT_W - 8, align: "right" });
+    doc.moveTo(MARGIN, y + 12).lineTo(MARGIN + CONTENT_W, y + 12).lineWidth(0.5).stroke(GREEN);
+    doc.font("Arabic").fontSize(6.5).fillColor("#1a1a1a")
+      .text(notes, MARGIN + 4, y + 14, { width: CONTENT_W - 8, align: "right" });
+    y += notesH + 4;
+
+    // ===== التوقيعات =====
+    const sigH = 38;
+    const sigW = CONTENT_W / 4;
+    const sigLabels = [
+      { title: "توقيع ولي الأمر", name: "........................." },
+      { title: "المرشد الطلابي", name: plan.counselorName || "........................." },
+      { title: "اطلع عليه مدير المدرسة", name: plan.principalName || "" },
+      { title: "توقيع المعلم", name: plan.teacherName || "" },
+    ];
+    for (let i = 0; i < 4; i++) {
+      const sx = MARGIN + (3 - i) * sigW; // RTL
+      strokeRect(sx, y, sigW, sigH, GREEN, 0.8);
+      doc.font("ArabicBold").fontSize(6.5).fillColor(GREEN)
+        .text(sigLabels[i].title, sx + 2, y + 4, { width: sigW - 4, align: "center" });
+      doc.font("ArabicBold").fontSize(8).fillColor("#1a1a1a")
+        .text(sigLabels[i].name, sx + 2, y + 14, { width: sigW - 4, align: "center" });
+      doc.moveTo(sx + 4, y + sigH - 8).lineTo(sx + sigW - 4, y + sigH - 8).lineWidth(0.5).stroke("#888");
+      doc.font("Arabic").fontSize(6).fillColor(GRAY)
+        .text("التوقيع", sx + 2, y + sigH - 6, { width: sigW - 4, align: "center" });
+    }
+    y += sigH + 4;
+
+    // ===== QR Codes =====
+    if (qrExamBuf || qrProjectBuf) {
+      doc.moveTo(MARGIN, y).lineTo(MARGIN + CONTENT_W, y).lineWidth(1.5).stroke(GREEN);
+      y += 4;
+      const qrSize = 60;
+      const halfW = CONTENT_W / 2;
+      if (qrExamBuf) {
+        doc.font("ArabicBold").fontSize(7.5).fillColor(GREEN)
+          .text(`رابط اختبار ${plan.subject}`, MARGIN + halfW, y, { width: halfW, align: "center" });
+        doc.image(qrExamBuf, MARGIN + halfW + (halfW - qrSize) / 2, y + 10, { width: qrSize, height: qrSize });
+        if (plan.examLink) {
+          doc.font("Arabic").fontSize(5.5).fillColor(DARK_GREEN)
+            .text(plan.examLink, MARGIN + halfW, y + 72, { width: halfW, align: "center" });
+        }
+        if (plan.examDuration) {
+          doc.font("ArabicBold").fontSize(6.5).fillColor(RED)
+            .text(`⚠️ متاح ${plan.examDuration}`, MARGIN + halfW, y + 80, { width: halfW, align: "center" });
+        }
+      }
+      if (qrProjectBuf) {
+        doc.moveTo(MARGIN + halfW, y - 4).lineTo(MARGIN + halfW, y + 90).lineWidth(0.5).dash(3, { space: 3 }).stroke(GREEN);
+        doc.font("ArabicBold").fontSize(7.5).fillColor(GREEN)
+          .text(`رابط تسليم مشروع ${plan.subject}`, MARGIN, y, { width: halfW, align: "center" });
+        doc.image(qrProjectBuf, MARGIN + (halfW - qrSize) / 2, y + 10, { width: qrSize, height: qrSize });
+        if (plan.projectLink) {
+          doc.font("Arabic").fontSize(5.5).fillColor(DARK_GREEN)
+            .text(plan.projectLink, MARGIN, y + 72, { width: halfW, align: "center" });
+        }
+        if (plan.projectDuration) {
+          doc.font("ArabicBold").fontSize(6.5).fillColor(RED)
+            .text(`⚠️ متاح ${plan.projectDuration}`, MARGIN, y + 80, { width: halfW, align: "center" });
+        }
+      }
+      y += 95;
+    }
+
+    // ===== التذييل =====
+    doc.moveTo(MARGIN, PAGE_H - MARGIN - 12).lineTo(MARGIN + CONTENT_W, PAGE_H - MARGIN - 12).lineWidth(0.8).stroke(GREEN);
+    doc.font("Arabic").fontSize(6).fillColor(GRAY)
+      .text(`${plan.schoolName} | وزارة التعليم | المملكة العربية السعودية`, MARGIN, PAGE_H - MARGIN - 8, { width: CONTENT_W, align: "center" });
+  }
+
+  doc.end();
+  return new Promise<Buffer>((resolve, reject) => {
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+  });
 }
 
 // توليد DOCX

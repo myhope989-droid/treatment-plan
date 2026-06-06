@@ -70,3 +70,4 @@
 - [x] إضافة معاينة مصغّرة للتقرير (iframe) في صفحة التقرير النهائي
 - [x] إصلاح جذري لمشكلة "الفصل غير موجود": إضافة state مستقلة serverClassIds، mutex لمنع double-submit، تحقق مبكر في الخادم لـ classId غير الصالح
 - [x] إصلاح خطأ "Browser was not found at /usr/bin/chromium" في بيئة الإنتاج: إضافة @sparticuz/chromium للكشف التلقائي عن Chromium في بيئة الإنتاج مع fallback للمسارات الشائعة
+- [x] استبدال Puppeteer بـ PDFKit (مكتبة Node.js خالصة بدون Chromium): يعمل في بيئة الإنتاج بدون مكتبات نظام خارجية، مع تحميل خطوط NotoSansArabic من S3
