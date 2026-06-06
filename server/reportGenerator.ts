@@ -8,6 +8,38 @@ import puppeteer from "puppeteer-core";
 import * as fs from "fs";
 import * as path from "path";
 
+// اكتشاف مسار Chromium تلقائياً - يدعم sandbox وبيئة الإنتاج
+async function getChromiumExecutablePath(): Promise<string> {
+  // أولاً: تجربة @sparticuz/chromium (يعمل في بيئة الإنتاج)
+  try {
+    const chromiumPkg = await import("@sparticuz/chromium");
+    const chromium = chromiumPkg.default || chromiumPkg;
+    if (typeof chromium.executablePath === "function") {
+      const execPath = await chromium.executablePath();
+      if (execPath && fs.existsSync(execPath)) {
+        return execPath;
+      }
+    }
+  } catch {
+    // @sparticuz/chromium غير متاح
+  }
+
+  // ثانياً: المسارات الشائعة
+  const candidates = [
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/lib/chromium/chromium",
+    "/snap/bin/chromium",
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+
+  throw new Error("لم يتم العثور على Chromium. يرجى التواصل مع الدعم الفني.");
+}
+
 const MOE_LOGO_PATH = path.join(process.cwd(), "server", "assets", "moe_logo.png");
 
 // قراءة شعار وزارة التعليم كـ base64
@@ -263,9 +295,10 @@ async function generatePageHTML(plan: any, cls: any): Promise<string> {
 
 // توليد PDF متعدد الصفحات
 export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
+  const executablePath = await getChromiumExecutablePath();
   const browser = await puppeteer.launch({
-    executablePath: "/usr/bin/chromium",
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+    executablePath,
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--single-process", "--no-zygote"],
     headless: true,
   });
 
