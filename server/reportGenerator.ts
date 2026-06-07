@@ -8,6 +8,16 @@ import PDFDocument from "pdfkit";
 import * as fs from "fs";
 import * as path from "path";
 import { storageGetSignedUrl } from "./storage";
+import sharp from "sharp";
+
+// تحويل أي صورة (WebP, JPEG, PNG, SVG...) إلى PNG مدعوم من PDFKit
+async function toSafePngBuffer(input: Buffer): Promise<Buffer> {
+  try {
+    return await sharp(input).png().toBuffer();
+  } catch {
+    return input; // إذا فشل التحويل، أعد الصورة كما هي
+  }
+}
 
 // مفاتيح الخطوط العربية في S3
 const FONT_REGULAR_KEY = "NotoSansArabic-Regular_158bb32c.ttf";
@@ -299,10 +309,15 @@ export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
   const classesWithStudents = (plan.classes || []).filter((c: any) => c.students && c.students.length > 0);
   const allClasses = classesWithStudents.length > 0 ? classesWithStudents : [{ classNumber: 1, students: [] }];
 
-  // تحميل شعار وزارة التعليم
-  const moeLogoBuffer = fs.existsSync(MOE_LOGO_PATH) ? fs.readFileSync(MOE_LOGO_PATH) : null;
+  // تحميل شعار وزارة التعليم وتحويله إلى PNG آمن
+  let moeLogoBuffer: Buffer | null = null;
+  if (fs.existsSync(MOE_LOGO_PATH)) {
+    try {
+      moeLogoBuffer = await toSafePngBuffer(fs.readFileSync(MOE_LOGO_PATH));
+    } catch { /* تجاهل */ }
+  }
 
-  // تحميل شعار المدرسة (إن وجد)
+  // تحميل شعار المدرسة وتحويله إلى PNG آمن
   let schoolLogoBuffer: Buffer | null = null;
   if (plan.schoolLogoUrl) {
     try {
@@ -310,7 +325,10 @@ export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
         ? await storageGetSignedUrl(plan.schoolLogoUrl.replace("/manus-storage/", ""))
         : plan.schoolLogoUrl;
       const resp = await fetch(logoUrl);
-      if (resp.ok) schoolLogoBuffer = Buffer.from(await resp.arrayBuffer());
+      if (resp.ok) {
+        const rawBuf = Buffer.from(await resp.arrayBuffer());
+        schoolLogoBuffer = await toSafePngBuffer(rawBuf);
+      }
     } catch { /* تجاهل خطأ الشعار */ }
   }
 
@@ -318,11 +336,12 @@ export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
   const qrExamDataUrl = plan.examLink ? await generateQRBase64(plan.examLink) : "";
   const qrProjectDataUrl = plan.projectLink ? await generateQRBase64(plan.projectLink) : "";
 
-  // تحويل QR data URL إلى Buffer
+  // تحويل QR data URL إلى Buffer PNG آمن
   async function qrToBuffer(dataUrl: string): Promise<Buffer | null> {
     if (!dataUrl) return null;
     const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
-    return Buffer.from(base64, "base64");
+    const raw = Buffer.from(base64, "base64");
+    return await toSafePngBuffer(raw);
   }
   const qrExamBuf = await qrToBuffer(qrExamDataUrl);
   const qrProjectBuf = await qrToBuffer(qrProjectDataUrl);
