@@ -12,7 +12,7 @@ import {
   getPlanClassesByPlanId, createPlanStudents, getPlanStudentsByClassId,
   getPlanStudentsByPlanId, deletePlanStudentsByClassId, updatePlanStudent
 } from "./db";
-import { generateTreatmentPlanPDF, generateTreatmentPlanDOCX } from "./reportGenerator.ts";
+import { generateTreatmentPlanPDF, generateTreatmentPlanDOCX, generatePageHTML } from "./reportGenerator.ts";
 
 export const appRouter = router({
   system: systemRouter,
@@ -326,6 +326,43 @@ export const appRouter = router({
       }),
 
     // توليد التقرير
+    // إرجاع HTML pages للطباعة client-side
+    getReportHtml: publicProcedure
+      .input(z.object({ planId: z.number() }))
+      .query(async ({ input }) => {
+        const plan = await getTreatmentPlanById(input.planId);
+        if (!plan) throw new TRPCError({ code: "NOT_FOUND", message: "الخطة غير موجودة" });
+
+        const classes = await getPlanClassesByPlanId(input.planId);
+        const classesWithStudents = await Promise.all(
+          classes.map(async (cls) => {
+            const students = await getPlanStudentsByClassId(cls.id);
+            return { ...cls, students };
+          })
+        );
+
+        // تحميل شعار المدرسة كـ base64 إذا كان من S3
+        let fullPlan = { ...plan, classes: classesWithStudents };
+        if (plan.schoolLogoUrl && plan.schoolLogoUrl.startsWith("/manus-storage/")) {
+          try {
+            const { storageGetSignedUrl } = await import("./storage");
+            const signedUrl = await storageGetSignedUrl(plan.schoolLogoUrl.replace("/manus-storage/", ""));
+            const resp = await fetch(signedUrl);
+            if (resp.ok) {
+              const buf = Buffer.from(await resp.arrayBuffer());
+              const b64 = `data:image/png;base64,${buf.toString("base64")}`;
+              fullPlan = { ...fullPlan, schoolLogoUrl: b64 };
+            }
+          } catch { /* تجاهل */ }
+        }
+
+        const htmlPages = await Promise.all(
+          classesWithStudents.map(cls => generatePageHTML(fullPlan, cls))
+        );
+
+        return { htmlPages, planId: input.planId };
+      }),
+
     generate: publicProcedure
       .input(z.object({ planId: z.number() }))
       .mutation(async ({ ctx, input }) => {

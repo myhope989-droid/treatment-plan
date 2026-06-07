@@ -105,8 +105,57 @@ export default function WizardPage() {
   const [editingStudentId, setEditingStudentId] = useState<number | null>(null);
   // state مستقلة لـ classIds من الخادم - المصدر الوحيد الموثوق
   const [serverClassIds, setServerClassIds] = useState<number[]>([]);
+  const [currentPrintPlanId, setCurrentPrintPlanId] = useState<number | null>(null);
   // mutex لمنع double-submit
   const isAnalyzingRef = useRef<Record<number, boolean>>({});
+
+  // دمج صفحات HTML في مستند واحد قابل للطباعة
+  function buildPrintableHtml(htmlPages: string[]): string {
+    // استخراج المحتوى من كل صفحة (body content)
+    const bodies = htmlPages.map(html => {
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      return bodyMatch ? bodyMatch[1] : html;
+    });
+    // استخراج CSS من الصفحة الأولى
+    const styleMatch = htmlPages[0]?.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+    const css = styleMatch ? styleMatch[1] : "";
+    const pagesHtml = bodies.map((body, i) =>
+      `<div class="report-page" style="page-break-after:${i < bodies.length - 1 ? 'always' : 'avoid'};">${body}</div>`
+    ).join("\n");
+    return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الخطة العلاجية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+${css}
+body { font-family: 'Noto Naskh Arabic', 'Arial', 'Tahoma', serif; direction: rtl; background: white; }
+.report-page { max-width: 210mm; margin: 0 auto; padding: 6mm 8mm; }
+@media print {
+  body { margin: 0; }
+  .print-btn { display: none !important; }
+  .report-page { page-break-after: always; max-width: 100%; padding: 6mm 8mm; }
+  .report-page:last-child { page-break-after: avoid; }
+}
+.print-btn {
+  position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+  background: #1a7a5e; color: white; border: none; padding: 10px 30px;
+  font-size: 16px; border-radius: 8px; cursor: pointer; z-index: 9999;
+  font-family: 'Noto Naskh Arabic', Arial, sans-serif;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.print-btn:hover { background: #0d5c45; }
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">اضغط هنا للطباعة ←</button>
+${pagesHtml}
+</body>
+</html>`;
+  }
 
   // helper آمن للـ localStorage
   const safeLocalGet = (key: string) => {
@@ -147,6 +196,10 @@ export default function WizardPage() {
   const updatePlan = trpc.plan.update.useMutation();
   const uploadAnalyze = trpc.plan.uploadAndAnalyze.useMutation();
   const generateReport = trpc.plan.generate.useMutation();
+  const getReportHtml = trpc.plan.getReportHtml.useQuery(
+    { planId: planId! },
+    { enabled: false } // نستدعيها يدوياً فقط
+  );
   const updateStudent = trpc.plan.updateStudent.useMutation();
   const addStudent = trpc.plan.addStudent.useMutation();
   const trpcUtils = trpc.useUtils();
@@ -895,10 +948,23 @@ export default function WizardPage() {
                 schoolLogoBase64: schoolLogoBase64 || undefined,
               });
 
-              // توليد التقرير
-              const result = await generateReport.mutateAsync({ planId: currentPlanId! });
-              setGeneratedPdfUrl(result.pdfUrl);
-              setGeneratedDocxUrl(result.docxUrl);
+              // توليد التقرير - client-side HTML printing
+              const htmlResult = await trpcUtils.plan.getReportHtml.fetch({ planId: currentPlanId! });
+              if (htmlResult && htmlResult.htmlPages && htmlResult.htmlPages.length > 0) {
+                // دمج كل صفحات HTML في نافذة واحدة
+                const combinedHtml = buildPrintableHtml(htmlResult.htmlPages);
+                const printWin = window.open("", "_blank", "width=900,height=700");
+                if (printWin) {
+                  printWin.document.write(combinedHtml);
+                  printWin.document.close();
+                }
+                setGeneratedPdfUrl(`/api/trpc/plan.getReportHtml?input=${encodeURIComponent(JSON.stringify({ planId: currentPlanId! }))}`);
+                setCurrentPrintPlanId(currentPlanId!);
+              }
+              // توليد DOCX في الخلفية (اختياري)
+              generateReport.mutateAsync({ planId: currentPlanId! }).then(result => {
+                setGeneratedDocxUrl(result.docxUrl);
+              }).catch(() => { /* تجاهل خطأ DOCX */ });
               setStep(6);
             } catch (err) {
               toast.error("فشل توليد التقرير: " + String(err));
@@ -923,16 +989,33 @@ export default function WizardPage() {
     <div className="step-enter text-center py-8">
       <div className="text-6xl mb-4">🎉</div>
       <h2 className="text-2xl font-bold text-gray-800 mb-2">تم توليد الخطة العلاجية!</h2>
-      <p className="text-gray-500 text-sm mb-8">يمكنك تنزيل التقرير بصيغة PDF أو DOCX</p>
+      <p className="text-gray-500 text-sm mb-6">يمكنك طباعة التقرير مباشرة أو تنزيله بصيغة DOCX</p>
 
+      {/* زر الطباعة الرئيسي */}
       <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
-        {generatedPdfUrl && (
-          <a href={generatedPdfUrl} target="_blank" rel="noopener noreferrer">
-            <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white px-8 rounded-xl w-full sm:w-auto">
-              <Download className="w-5 h-5 ml-2" />
-              تنزيل PDF
-            </Button>
-          </a>
+        {currentPrintPlanId && (
+          <Button
+            size="lg"
+            className="bg-green-700 hover:bg-green-800 text-white px-8 rounded-xl w-full sm:w-auto"
+            onClick={async () => {
+              try {
+                const htmlResult = await trpcUtils.plan.getReportHtml.fetch({ planId: currentPrintPlanId });
+                if (htmlResult && htmlResult.htmlPages && htmlResult.htmlPages.length > 0) {
+                  const combinedHtml = buildPrintableHtml(htmlResult.htmlPages);
+                  const printWin = window.open("", "_blank");
+                  if (printWin) {
+                    printWin.document.write(combinedHtml);
+                    printWin.document.close();
+                  } else {
+                    toast.error("تم حجب النافذة الجديدة - يرجى السماح للنوافذ المنبثقة");
+                  }
+                }
+              } catch { toast.error("تعذر تحميل التقرير"); }
+            }}
+          >
+            <Printer className="w-5 h-5 ml-2" />
+            طباعة التقرير / حفظ PDF
+          </Button>
         )}
         {generatedDocxUrl && (
           <a href={generatedDocxUrl} target="_blank" rel="noopener noreferrer">
@@ -942,41 +1025,8 @@ export default function WizardPage() {
             </Button>
           </a>
         )}
-        {generatedPdfUrl && (
-          <a href={generatedPdfUrl} target="_blank" rel="noopener noreferrer">
-            <Button
-              size="lg"
-              className="bg-amber-700 hover:bg-amber-800 text-white px-8 rounded-xl w-full sm:w-auto"
-            >
-              <Printer className="w-5 h-5 ml-2" />
-              فتح للطباعة
-            </Button>
-          </a>
-        )}
       </div>
-      <p className="text-xs text-gray-400 mb-4">ℹ️ اضغط على "فتح للطباعة" لفتح ملف PDF ثم اضغط على زر الطباعة في المتصفح</p>
-
-      {/* معاينة التقرير */}
-      {generatedPdfUrl && (
-        <div className="mb-6 text-right">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-1">
-              <Eye className="w-4 h-4 text-amber-700" />
-              معاينة التقرير
-            </h3>
-            <span className="text-xs text-gray-400">يمكن التمرير داخل المعاينة</span>
-          </div>
-          <div className="border-2 border-amber-200 rounded-xl overflow-hidden shadow-md bg-gray-50">
-            <iframe
-              src={generatedPdfUrl}
-              className="w-full"
-              style={{ height: "500px" }}
-              title="معاينة التقرير"
-            />
-          </div>
-          <p className="text-xs text-gray-400 mt-1 text-center">ℹ️ إذا لم تظهر المعاينة استخدم زر "تنزيل PDF" أعلاه</p>
-        </div>
-      )}
+      <p className="text-xs text-gray-400 mb-4">ℹ️ اضغط "طباعة التقرير" لفتح صفحة الطباعة • من صفحة الطباعة اضغط على "حفظ كـ PDF" لحفظه على جهازك</p>
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Button variant="outline" onClick={() => navigate("/history")}>
@@ -990,7 +1040,7 @@ export default function WizardPage() {
           onClick={() => {
             setStep(0); setPlanId(null); setTeacherName(""); setSchoolName("");
             setPrincipalName(""); setSubject(""); setClasses([]);
-            setGeneratedPdfUrl(""); setGeneratedDocxUrl("");
+            setGeneratedPdfUrl(""); setGeneratedDocxUrl(""); setCurrentPrintPlanId(null);
           }}
         >
           إنشاء خطة جديدة

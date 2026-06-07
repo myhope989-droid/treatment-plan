@@ -93,7 +93,7 @@ async function generateQRBase64(url: string): Promise<string> {
 const DEFAULT_NOTES = `بعد حصر الطلاب الذين لم يسلموا المشروع أو لم يؤدوا الاختبار، تم تنفيذ متابعة علاجية مستمرة خلال أكثر من خمس حصص دراسية، حيث تم الاستفسار بشكل فردي عن أسباب عدم التسليم أو عدم أداء الاختبار. وقد تبين أن جميع الطلاب لا يملكون أعذاراً مقنعة أو مبررات تمنعهم من إنجاز المطلوب. كما تم توفير الاختبار والمهام عبر عدة قنوات لضمان سهولة الوصول إليها، حيث نُشرت على منصة مدرستي، وأُرسلت عبر قناة المادة في تطبيق التليجرام، إضافة إلى التذكير والمتابعة المتكررة أثناء الحصص الدراسية.`;
 
 // توليد HTML لصفحة واحدة (فصل واحد)
-async function generatePageHTML(plan: any, cls: any): Promise<string> {
+export async function generatePageHTML(plan: any, cls: any): Promise<string> {
   const moeLogoB64 = getMoeLogoBase64();
   const qrExam = plan.examLink ? await generateQRBase64(plan.examLink) : "";
   const qrProject = plan.projectLink ? await generateQRBase64(plan.projectLink) : "";
