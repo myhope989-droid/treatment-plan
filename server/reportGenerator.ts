@@ -108,14 +108,14 @@ async function generatePageHTML(plan: any, cls: any): Promise<string> {
     const examText = s.examStatus === "no_exam" ? "لم يحل" : "حل ✓";
     const projText = s.projectStatus === "not_submitted" ? "لم يسلّم" : "سلّم ✓";
     return `<tr style="background:${bg}">
-      <td class="num">${idx + 1}</td>
-      <td class="name-cell">${s.studentName}</td>
-      <td></td>
-      <td style="color:${examColor};font-weight:bold;">${examText}</td>
+      <td><div class="fb"></div></td>
       <td><div class="fb"></div></td>
       <td style="color:${projColor};font-weight:bold;">${projText}</td>
       <td><div class="fb"></div></td>
-      <td><div class="fb"></div></td>
+      <td style="color:${examColor};font-weight:bold;">${examText}</td>
+      <td></td>
+      <td class="name-cell">${s.studentName}</td>
+      <td class="num">${idx + 1}</td>
     </tr>`;
   }).join("");
 
@@ -257,14 +257,14 @@ async function generatePageHTML(plan: any, cls: any): Promise<string> {
   <table>
     <thead>
       <tr>
-        <th style="width:18px">م</th>
-        <th style="width:115px">اسم الطالب</th>
-        <th style="width:42px">رقم الجلسة</th>
-        <th style="width:42px">الاختبار</th>
-        <th>سبب عدم حل الاختبار</th>
-        <th style="width:42px">المشروع</th>
-        <th>سبب عدم تسليم المشروع</th>
         <th style="width:50px">الإجراء المتخذ</th>
+        <th>سبب عدم تسليم المشروع</th>
+        <th style="width:42px">المشروع</th>
+        <th>سبب عدم حل الاختبار</th>
+        <th style="width:42px">الاختبار</th>
+        <th style="width:42px">رقم الجلسة</th>
+        <th style="width:115px">اسم الطالب</th>
+        <th style="width:18px">م</th>
       </tr>
     </thead>
     <tbody>${rows || `<tr><td colspan="8" style="text-align:center;color:#888;padding:8px;">لا يوجد طلاب</td></tr>`}</tbody>
@@ -464,28 +464,28 @@ export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
 
         // ===== جدول الطلاب =====
         React.createElement(View, { style: { borderWidth: 0.8, borderColor: GREEN, borderRadius: 2, marginBottom: 4 } },
-          // رأس الجدول
+          // رأس الجدول (من اليمين: اسم الطالب أولاً)
           React.createElement(View, { style: styles.tableHeaderRow },
-            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 0.4 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "م")),
-            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 2.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "اسم الطالب")),
-            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "رقم الجلسة")),
-            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "الاختبار")),
-            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "سبب عدم حل الاختبار")),
-            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "المشروع")),
-            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "سبب عدم تسليم المشروع")),
             React.createElement(View, { style: [styles.tableHeaderCell, { borderRightWidth: 0 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "الإجراء المتخذ")),
+            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "سبب عدم تسليم المشروع")),
+            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "المشروع")),
+            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "سبب عدم حل الاختبار")),
+            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "الاختبار")),
+            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "رقم الجلسة")),
+            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 2.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "اسم الطالب")),
+            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 0.4 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "م")),
           ),
           // صفوف الطلاب
           ...students.map((s: any, si: number) =>
             React.createElement(View, { key: si, style: [styles.tableRow, { backgroundColor: si % 2 === 0 ? WHITE : LIGHT_BG }] },
-              React.createElement(View, { style: [styles.tableCell, { flex: 0.4 }] }, React.createElement(Text, { style: [styles.tableCellText, { color: GREEN, fontFamily: "ArabicBold" }] }, String(si + 1))),
-              React.createElement(View, { style: [styles.tableCellName, { flex: 2.5 }] }, React.createElement(Text, { style: styles.tableCellNameText }, s.studentName || "")),
-              React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: styles.tableCellText }, "")),
-              React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: [styles.tableCellText, { color: s.examStatus === "no_exam" ? RED : GREEN, fontFamily: "ArabicBold" }] }, s.examStatus === "no_exam" ? "لم يحل" : "حل")),
+              React.createElement(View, { style: [styles.tableCell, { borderRightWidth: 0 }] }, React.createElement(Text, { style: styles.tableCellText }, "")),
               React.createElement(View, { style: [styles.tableCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableCellText }, "")),
               React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: [styles.tableCellText, { color: s.projectStatus === "not_submitted" ? RED : GREEN, fontFamily: "ArabicBold" }] }, s.projectStatus === "not_submitted" ? "لم يسلم" : "سلم")),
               React.createElement(View, { style: [styles.tableCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableCellText }, "")),
-              React.createElement(View, { style: [styles.tableCell, { borderRightWidth: 0 }] }, React.createElement(Text, { style: styles.tableCellText }, "")),
+              React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: [styles.tableCellText, { color: s.examStatus === "no_exam" ? RED : GREEN, fontFamily: "ArabicBold" }] }, s.examStatus === "no_exam" ? "لم يحل" : "حل")),
+              React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: styles.tableCellText }, "")),
+              React.createElement(View, { style: [styles.tableCellName, { flex: 2.5 }] }, React.createElement(Text, { style: styles.tableCellNameText }, s.studentName || "")),
+              React.createElement(View, { style: [styles.tableCell, { flex: 0.4 }] }, React.createElement(Text, { style: [styles.tableCellText, { color: GREEN, fontFamily: "ArabicBold" }] }, String(si + 1))),
             )
           ),
           students.length === 0 && React.createElement(View, { style: styles.tableRow },
