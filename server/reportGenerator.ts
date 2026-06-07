@@ -108,14 +108,14 @@ export async function generatePageHTML(plan: any, cls: any): Promise<string> {
     const examText = s.examStatus === "no_exam" ? "لم يحل" : "حل ✓";
     const projText = s.projectStatus === "not_submitted" ? "لم يسلّم" : "سلّم ✓";
     return `<tr style="background:${bg}">
-      <td><div class="fb"></div></td>
+      <td class="num">${idx + 1}</td>
+      <td class="name-cell">${s.studentName}</td>
+      <td></td>
+      <td style="color:${examColor};font-weight:bold;">${examText}</td>
       <td><div class="fb"></div></td>
       <td style="color:${projColor};font-weight:bold;">${projText}</td>
       <td><div class="fb"></div></td>
-      <td style="color:${examColor};font-weight:bold;">${examText}</td>
-      <td></td>
-      <td class="name-cell">${s.studentName}</td>
-      <td class="num">${idx + 1}</td>
+      <td><div class="fb"></div></td>
     </tr>`;
   }).join("");
 
@@ -209,7 +209,7 @@ export async function generatePageHTML(plan: any, cls: any): Promise<string> {
     font-size: 6.8pt;
   }
   .num { width: 18px; font-weight: bold; color: #1a7a5e; }
-  .name-cell { width: 115px; text-align: right; padding-right: 5px; }
+  .name-cell { width: 115px; text-align: right; padding-right: 5px; direction: rtl; }
   .fb { border: 1px solid #bbb; min-height: 13px; border-radius: 2px; background: white; }
   .notes {
     margin-top: 4px;
@@ -257,14 +257,14 @@ export async function generatePageHTML(plan: any, cls: any): Promise<string> {
   <table>
     <thead>
       <tr>
-        <th style="width:50px">الإجراء المتخذ</th>
-        <th>سبب عدم تسليم المشروع</th>
-        <th style="width:42px">المشروع</th>
-        <th>سبب عدم حل الاختبار</th>
-        <th style="width:42px">الاختبار</th>
-        <th style="width:42px">رقم الجلسة</th>
-        <th style="width:115px">اسم الطالب</th>
         <th style="width:18px">م</th>
+        <th style="width:115px">اسم الطالب</th>
+        <th style="width:42px">رقم الجلسة</th>
+        <th style="width:42px">الاختبار</th>
+        <th>سبب عدم حل الاختبار</th>
+        <th style="width:42px">المشروع</th>
+        <th>سبب عدم تسليم المشروع</th>
+        <th style="width:50px">الإجراء المتخذ</th>
       </tr>
     </thead>
     <tbody>${rows || `<tr><td colspan="8" style="text-align:center;color:#888;padding:8px;">لا يوجد طلاب</td></tr>`}</tbody>
