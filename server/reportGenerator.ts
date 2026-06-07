@@ -249,7 +249,7 @@ async function generatePageHTML(plan: any, cls: any): Promise<string> {
 
   <div class="info-row">
     <div class="info-box"><span class="lbl">الفصل الدراسي</span><span class="val">${plan.academicYear || "الثاني / 1446-1447هـ"}</span></div>
-    <div class="info-box"><span class="lbl">الصف والفصل</span><span class="val">${plan.gradeLevel || "الصف"} / ${cls.classNumber}</span></div>
+    <div class="info-box"><span class="lbl">الصف والفصل</span><span class="val">${plan.gradeLevel || "الصف"} / فصل ${cls.classNumber}</span></div>
     <div class="info-box"><span class="lbl">المادة الدراسية</span><span class="val">${plan.subject}</span></div>
     <div class="info-box"><span class="lbl">التاريخ</span><span class="val">...... / ...... / ....هـ</span></div>
   </div>
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: "row", marginBottom: 4, gap: 3 },
   infoBox: { flex: 1, borderWidth: 0.8, borderColor: GREEN, borderRadius: 2, paddingHorizontal: 3, paddingVertical: 2, alignItems: "center" },
   infoLabel: { fontSize: 5.5, color: GREEN, fontFamily: "ArabicBold" },
-  infoValue: { fontSize: 7, fontFamily: "ArabicBold", color: "#1a1a1a" },
+  infoValue: { fontSize: 6.5, fontFamily: "ArabicBold", color: "#1a1a1a", textAlign: "center" },
   // جدول الطلاب
   tableHeaderRow: { flexDirection: "row", backgroundColor: GREEN },
   tableHeaderCell: { flex: 1, paddingVertical: 3, paddingHorizontal: 1, borderRightWidth: 0.5, borderRightColor: DARK_GREEN, alignItems: "center", justifyContent: "center" },
@@ -454,7 +454,7 @@ export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
           ),
           React.createElement(View, { style: styles.infoBox },
             React.createElement(Text, { style: styles.infoLabel }, "الصف والفصل"),
-            React.createElement(Text, { style: styles.infoValue }, `${plan.gradeLevel || "الصف"} / ${cls.classNumber}`),
+            React.createElement(Text, { style: styles.infoValue }, `${plan.gradeLevel || "الصف"} / فصل ${cls.classNumber}`),
           ),
           React.createElement(View, { style: styles.infoBox },
             React.createElement(Text, { style: styles.infoLabel }, "الفصل الدراسي"),
