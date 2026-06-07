@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import WizardPage from "./pages/WizardPage";
 import HistoryPage from "./pages/HistoryPage";
 import PlanDetailPage from "./pages/PlanDetailPage";
+import PrintPage from "./pages/PrintPage";
 
 function Router() {
   return (
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/wizard/:planId" component={WizardPage} />
       <Route path="/history" component={HistoryPage} />
       <Route path="/plan/:planId" component={PlanDetailPage} />
+      <Route path="/print/:planId" component={PrintPage} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

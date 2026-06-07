@@ -1,87 +1,20 @@
-import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { useLocation, useParams } from "wouter";
 import { ArrowRight, Download, BookOpen, Home, Loader2, Users, FileText, Link2, Printer } from "lucide-react";
-import { toast } from "sonner";
 
 export default function PlanDetailPage() {
   const [, navigate] = useLocation();
   const params = useParams<{ planId: string }>();
   const planId = parseInt(params.planId || "0");
-  const [isPrinting, setIsPrinting] = useState(false);
-  const trpcUtils = trpc.useUtils();
 
   const { data: plan, isLoading } = trpc.plan.getById.useQuery(
     { planId },
     { enabled: !!planId }
   );
 
-  // دمج صفحات HTML في مستند واحد قابل للطباعة
-  function buildPrintableHtml(htmlPages: string[]): string {
-    const bodies = htmlPages.map(html => {
-      const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-      return bodyMatch ? bodyMatch[1] : html;
-    });
-    const styleMatch = htmlPages[0]?.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-    const css = styleMatch ? styleMatch[1] : "";
-    const pagesHtml = bodies.map((body, i) =>
-      `<div class="report-page" style="page-break-after:${i < bodies.length - 1 ? 'always' : 'avoid'};">${body}</div>`
-    ).join("\n");
-    return `<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>الخطة العلاجية</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&display=swap" rel="stylesheet">
-<style>
-${css}
-body { font-family: 'Noto Naskh Arabic', 'Arial', 'Tahoma', serif; direction: rtl; background: white; }
-.report-page { max-width: 210mm; margin: 0 auto; padding: 6mm 8mm; }
-@media print {
-  body { margin: 0; }
-  .print-btn { display: none !important; }
-  .report-page { page-break-after: always; max-width: 100%; padding: 6mm 8mm; }
-  .report-page:last-child { page-break-after: avoid; }
-}
-.print-btn {
-  position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
-  background: #1a7a5e; color: white; border: none; padding: 10px 30px;
-  font-size: 16px; border-radius: 8px; cursor: pointer; z-index: 9999;
-  font-family: 'Noto Naskh Arabic', Arial, sans-serif;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
-.print-btn:hover { background: #0d5c45; }
-</style>
-</head>
-<body>
-<button class="print-btn" onclick="window.print()">اضغط هنا للطباعة ←</button>
-${pagesHtml}
-</body>
-</html>`;
-  }
-
-  const handlePrint = async () => {
-    setIsPrinting(true);
-    try {
-      const htmlResult = await trpcUtils.plan.getReportHtml.fetch({ planId });
-      if (htmlResult && htmlResult.htmlPages && htmlResult.htmlPages.length > 0) {
-        const combinedHtml = buildPrintableHtml(htmlResult.htmlPages);
-        const printWin = window.open("", "_blank");
-        if (printWin) {
-          printWin.document.write(combinedHtml);
-          printWin.document.close();
-        } else {
-          toast.error("تم حجب النافذة - يرجى السماح للنوافذ المنبثقة");
-        }
-      }
-    } catch {
-      toast.error("تعذر تحميل التقرير");
-    } finally {
-      setIsPrinting(false);
-    }
+  const handlePrint = () => {
+    navigate(`/print/${planId}`);
   };
 
   if (isLoading) {
@@ -168,13 +101,8 @@ ${pagesHtml}
             <Button
               className="bg-green-700 hover:bg-green-800 text-white"
               onClick={handlePrint}
-              disabled={isPrinting}
             >
-              {isPrinting ? (
-                <><Loader2 className="w-4 h-4 ml-2 animate-spin" /> جاري التحميل...</>
-              ) : (
-                <><Printer className="w-4 h-4 ml-2" /> طباعة / حفظ PDF</>
-              )}
+              <Printer className="w-4 h-4 ml-2" /> طباعة / حفظ PDF
             </Button>
             {plan.docxUrl && (
               <a href={plan.docxUrl} target="_blank" rel="noopener noreferrer">

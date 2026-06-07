@@ -948,18 +948,9 @@ ${pagesHtml}
                 schoolLogoBase64: schoolLogoBase64 || undefined,
               });
 
-              // توليد التقرير - client-side HTML printing
-              const htmlResult = await trpcUtils.plan.getReportHtml.fetch({ planId: currentPlanId! });
-              if (htmlResult && htmlResult.htmlPages && htmlResult.htmlPages.length > 0) {
-                // دمج كل صفحات HTML في نافذة واحدة
-                const combinedHtml = buildPrintableHtml(htmlResult.htmlPages);
-                const printWin = window.open("", "_blank", "width=900,height=700");
-                if (printWin) {
-                  printWin.document.write(combinedHtml);
-                  printWin.document.close();
-                }
-                setGeneratedPdfUrl(`/api/trpc/plan.getReportHtml?input=${encodeURIComponent(JSON.stringify({ planId: currentPlanId! }))}`);
-                setCurrentPrintPlanId(currentPlanId!);
+              // تخزين planId للطباعة لاحقاً
+              if (currentPlanId) {
+                setCurrentPrintPlanId(currentPlanId);
               }
               // توليد DOCX في الخلفية (اختياري)
               generateReport.mutateAsync({ planId: currentPlanId! }).then(result => {
@@ -997,21 +988,7 @@ ${pagesHtml}
           <Button
             size="lg"
             className="bg-green-700 hover:bg-green-800 text-white px-8 rounded-xl w-full sm:w-auto"
-            onClick={async () => {
-              try {
-                const htmlResult = await trpcUtils.plan.getReportHtml.fetch({ planId: currentPrintPlanId });
-                if (htmlResult && htmlResult.htmlPages && htmlResult.htmlPages.length > 0) {
-                  const combinedHtml = buildPrintableHtml(htmlResult.htmlPages);
-                  const printWin = window.open("", "_blank");
-                  if (printWin) {
-                    printWin.document.write(combinedHtml);
-                    printWin.document.close();
-                  } else {
-                    toast.error("تم حجب النافذة الجديدة - يرجى السماح للنوافذ المنبثقة");
-                  }
-                }
-              } catch { toast.error("تعذر تحميل التقرير"); }
-            }}
+            onClick={() => navigate(`/print/${currentPrintPlanId}`)}
           >
             <Printer className="w-5 h-5 ml-2" />
             طباعة التقرير / حفظ PDF

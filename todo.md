@@ -77,3 +77,4 @@
 - [x] إصلاح جذري لمشكلة عكس النصوص في PDF: حذف direction:rtl من styles وعكس ترتيب العناصر في الكود يدوياً - النصوص الآن صحيحة تماماً
 - [x] إصلاح عرض "الصف والفصل" في PDF: إضافة "فصل" قبل رقم الفصل، وتصغير حجم الخط لمنع قطع النص
 - [x] تحويل توليد PDF من server-side إلى client-side HTML printing: إضافة getReportHtml endpoint يُرجع HTML pages، تعديل WizardPage وPlanDetailPage لفتح نافذة HTML مع زر طباعة - يعمل على كل الأجهزة بدون عكس النصوص العربية
+- [x] إصلاح مشكلة حجب النوافذ المنبثقة على Safari/iPhone: إنشاء صفحة /print/:planId مستقلة تعرض HTML التقرير مع زر طباعة أخضر كبير - استبدال window.open بـ navigate في WizardPage وPlanDetailPage
