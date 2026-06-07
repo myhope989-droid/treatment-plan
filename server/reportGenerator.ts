@@ -111,9 +111,9 @@ export async function generatePageHTML(plan: any, cls: any): Promise<string> {
       <td><div class="fb"></div></td>
       <td><div class="fb"></div></td>
       <td style="color:${projColor};font-weight:bold;">${projText}</td>
+      <td></td>
       <td><div class="fb"></div></td>
       <td style="color:${examColor};font-weight:bold;">${examText}</td>
-      <td></td>
       <td class="name-cell">${s.studentName}</td>
       <td class="num">${idx + 1}</td>
     </tr>`;
@@ -260,9 +260,9 @@ export async function generatePageHTML(plan: any, cls: any): Promise<string> {
         <th style="width:50px">الإجراء المتخذ</th>
         <th>سبب عدم تسليم المشروع</th>
         <th style="width:42px">المشروع</th>
+        <th style="width:42px">رقم الجلسة</th>
         <th>سبب عدم حل الاختبار</th>
         <th style="width:42px">الاختبار</th>
-        <th style="width:42px">رقم الجلسة</th>
         <th style="width:115px">اسم الطالب</th>
         <th style="width:18px">م</th>
       </tr>
