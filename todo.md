@@ -72,3 +72,4 @@
 - [x] إصلاح خطأ "Browser was not found at /usr/bin/chromium" في بيئة الإنتاج: إضافة @sparticuz/chromium للكشف التلقائي عن Chromium في بيئة الإنتاج مع fallback للمسارات الشائعة
 - [x] استبدال Puppeteer بـ PDFKit (مكتبة Node.js خالصة بدون Chromium): يعمل في بيئة الإنتاج بدون مكتبات نظام خارجية، مع تحميل خطوط NotoSansArabic من S3
 - [x] إصلاح خطأ "Unknown image format" في PDFKit: إضافة sharp لتحويل أي صيغة صورة (WebP, JPEG, SVG...) إلى PNG قبل إضافتها للـ PDF
+- [x] استبدال PDFKit بـ @react-pdf/renderer: دعم RTL كامل، نصوص عربية واضحة بدون التصاق، تصميم احترافي بالخطوط NotoSansArabic

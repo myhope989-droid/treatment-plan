@@ -4,11 +4,12 @@ import {
   TextRun, AlignmentType, WidthType, BorderStyle, ShadingType,
   ImageRun, HeadingLevel, VerticalAlign, convertInchesToTwip
 } from "docx";
-import PDFDocument from "pdfkit";
 import * as fs from "fs";
 import * as path from "path";
 import { storageGetSignedUrl } from "./storage";
 import sharp from "sharp";
+import React from "react";
+import { Document as PDFDoc, Page, Text, View, Image as PDFImage, StyleSheet, Font, renderToBuffer } from "@react-pdf/renderer";
 
 // تحويل أي صورة (WebP, JPEG, PNG, SVG...) إلى PNG مدعوم من PDFKit
 async function toSafePngBuffer(input: Buffer): Promise<Buffer> {
@@ -23,31 +24,42 @@ async function toSafePngBuffer(input: Buffer): Promise<Buffer> {
 const FONT_REGULAR_KEY = "NotoSansArabic-Regular_158bb32c.ttf";
 const FONT_BOLD_KEY = "NotoSansArabic-Bold_e06b9419.ttf";
 
-// cache للخطوط في الذاكرة (تُحمَّل مرة واحدة)
-let fontRegularBuffer: Buffer | null = null;
-let fontBoldBuffer: Buffer | null = null;
+// cache للخطوط في الذاكرة
+let fontRegularPath: string | null = null;
+let fontBoldPath: string | null = null;
+let fontsRegistered = false;
 
-async function loadFontBuffer(key: string, localName: string): Promise<Buffer> {
+async function ensureFontPath(key: string, localName: string): Promise<string> {
   // أولاً: من الملف المحلي (sandbox / dev)
   const localPath = path.join(process.cwd(), "server", "assets", localName);
-  if (fs.existsSync(localPath)) {
-    return fs.readFileSync(localPath);
-  }
-  // ثانياً: من S3 (بيئة الإنتاج)
+  if (fs.existsSync(localPath)) return localPath;
+  // ثانياً: من S3 - نحفظه في /tmp
+  const tmpPath = path.join("/tmp", localName);
+  if (fs.existsSync(tmpPath)) return tmpPath;
   const url = await storageGetSignedUrl(key);
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`فشل تحميل الخط: ${resp.status}`);
-  return Buffer.from(await resp.arrayBuffer());
+  fs.writeFileSync(tmpPath, Buffer.from(await resp.arrayBuffer()));
+  return tmpPath;
 }
 
+async function ensureFontsRegistered(): Promise<void> {
+  if (fontsRegistered) return;
+  fontRegularPath = await ensureFontPath(FONT_REGULAR_KEY, "NotoSansArabic-Regular.ttf");
+  fontBoldPath = await ensureFontPath(FONT_BOLD_KEY, "NotoSansArabic-Bold.ttf");
+  Font.register({ family: "Arabic", fonts: [
+    { src: fontRegularPath, fontWeight: "normal" },
+    { src: fontBoldPath, fontWeight: "bold" },
+  ]});
+  Font.register({ family: "ArabicBold", src: fontBoldPath });
+  fontsRegistered = true;
+}
+
+// دالة قديمة للتوافق مع DOCX
 async function getFonts(): Promise<{ regular: Buffer; bold: Buffer }> {
-  if (!fontRegularBuffer) {
-    fontRegularBuffer = await loadFontBuffer(FONT_REGULAR_KEY, "NotoSansArabic-Regular.ttf");
-  }
-  if (!fontBoldBuffer) {
-    fontBoldBuffer = await loadFontBuffer(FONT_BOLD_KEY, "NotoSansArabic-Bold.ttf");
-  }
-  return { regular: fontRegularBuffer, bold: fontBoldBuffer };
+  const regPath = await ensureFontPath(FONT_REGULAR_KEY, "NotoSansArabic-Regular.ttf");
+  const boldPath = await ensureFontPath(FONT_BOLD_KEY, "NotoSansArabic-Bold.ttf");
+  return { regular: fs.readFileSync(regPath), bold: fs.readFileSync(boldPath) };
 }
 
 const MOE_LOGO_PATH = path.join(process.cwd(), "server", "assets", "moe_logo.png");
@@ -303,22 +315,85 @@ async function generatePageHTML(plan: any, cls: any): Promise<string> {
 </html>`;
 }
 
-// توليد PDF باستخدام PDFKit (بدون Chromium - يعمل في بيئة الإنتاج)
+// ===== توليد PDF باستخدام @react-pdf/renderer (دعم RTL كامل) =====
+
+const GREEN = "#1a7a5e";
+const DARK_GREEN = "#0d5c45";
+const RED = "#c0392b";
+const GOLD = "#b8860b";
+const GOLD_BG = "#fffbeb";
+const GRAY = "#888888";
+const LIGHT_BG = "#f0faf6";
+const WHITE = "#ffffff";
+
+const styles = StyleSheet.create({
+  page: { fontFamily: "Arabic", direction: "rtl", padding: "6mm 8mm 5mm 8mm", backgroundColor: WHITE, fontSize: 7 },
+  // رأس الصفحة
+  header: { flexDirection: "row", alignItems: "center", borderBottomWidth: 2, borderBottomColor: GREEN, paddingBottom: 4, marginBottom: 4 },
+  headerLogo: { width: 44, height: 38, objectFit: "contain" },
+  headerCenter: { flex: 1, alignItems: "center", paddingHorizontal: 6 },
+  headerKingdom: { fontSize: 6, color: GRAY },
+  headerMinistry: { fontSize: 8, color: GREEN, fontFamily: "ArabicBold" },
+  headerSchool: { fontSize: 11, fontFamily: "ArabicBold", color: "#1a1a1a" },
+  // عنوان الخطة
+  planTitle: { backgroundColor: GREEN, color: WHITE, textAlign: "center", fontSize: 13, fontFamily: "ArabicBold", paddingVertical: 4, borderRadius: 3, marginBottom: 4 },
+  // صف المعلومات
+  infoRow: { flexDirection: "row", marginBottom: 4, gap: 3 },
+  infoBox: { flex: 1, borderWidth: 0.8, borderColor: GREEN, borderRadius: 2, paddingHorizontal: 3, paddingVertical: 2, alignItems: "center" },
+  infoLabel: { fontSize: 5.5, color: GREEN, fontFamily: "ArabicBold" },
+  infoValue: { fontSize: 7, fontFamily: "ArabicBold", color: "#1a1a1a" },
+  // جدول الطلاب
+  tableHeaderRow: { flexDirection: "row", backgroundColor: GREEN },
+  tableHeaderCell: { flex: 1, paddingVertical: 3, paddingHorizontal: 1, borderRightWidth: 0.5, borderRightColor: DARK_GREEN, alignItems: "center", justifyContent: "center" },
+  tableHeaderText: { fontSize: 6, color: WHITE, fontFamily: "ArabicBold", textAlign: "center" },
+  tableRow: { flexDirection: "row", borderBottomWidth: 0.3, borderBottomColor: "#cccccc" },
+  tableCell: { flex: 1, paddingVertical: 2, paddingHorizontal: 1, borderRightWidth: 0.3, borderRightColor: "#cccccc", alignItems: "center", justifyContent: "center" },
+  tableCellText: { fontSize: 6.5, textAlign: "center", color: "#1a1a1a" },
+  tableCellName: { flex: 2.5, paddingVertical: 2, paddingHorizontal: 3, borderRightWidth: 0.3, borderRightColor: "#cccccc", justifyContent: "center" },
+  tableCellNameText: { fontSize: 6.5, textAlign: "right", color: "#1a1a1a" },
+  // ملاحظات
+  notesBox: { borderWidth: 0.8, borderColor: GREEN, borderRadius: 2, padding: 4, marginBottom: 4 },
+  notesTitle: { fontSize: 7, fontFamily: "ArabicBold", color: GREEN, marginBottom: 3, textAlign: "right" },
+  notesText: { fontSize: 6.5, color: "#1a1a1a", textAlign: "right", lineHeight: 1.5 },
+  // إجراءات أولية
+  actionsBox: { borderWidth: 0.8, borderColor: GOLD, borderRadius: 2, padding: 4, marginBottom: 4, backgroundColor: GOLD_BG },
+  actionsTitle: { fontSize: 7, fontFamily: "ArabicBold", color: GOLD, marginBottom: 3, textAlign: "right" },
+  actionsText: { fontSize: 6.5, color: "#92660a", textAlign: "right", lineHeight: 1.5 },
+  // التوقيعات
+  sigRow: { flexDirection: "row", marginBottom: 4, gap: 3 },
+  sigBox: { flex: 1, borderWidth: 0.8, borderColor: GREEN, borderRadius: 2, padding: 3, alignItems: "center", minHeight: 36 },
+  sigTitle: { fontSize: 6, fontFamily: "ArabicBold", color: GREEN, marginBottom: 2 },
+  sigName: { fontSize: 7.5, fontFamily: "ArabicBold", color: "#1a1a1a", marginBottom: 4 },
+  sigLine: { borderTopWidth: 0.5, borderTopColor: GRAY, width: "80%", marginBottom: 1 },
+  sigLabel: { fontSize: 5.5, color: GRAY },
+  // QR
+  qrRow: { flexDirection: "row", borderTopWidth: 1.5, borderTopColor: GREEN, paddingTop: 4, marginTop: 2 },
+  qrHalf: { flex: 1, alignItems: "center", paddingHorizontal: 4 },
+  qrTitle: { fontSize: 7, fontFamily: "ArabicBold", color: GREEN, marginBottom: 3, textAlign: "center" },
+  qrImage: { width: 55, height: 55 },
+  qrLink: { fontSize: 5, color: DARK_GREEN, marginTop: 2, textAlign: "center" },
+  qrDuration: { fontSize: 6, fontFamily: "ArabicBold", color: RED, marginTop: 1, textAlign: "center" },
+  // تذييل
+  footer: { borderTopWidth: 0.8, borderTopColor: GREEN, paddingTop: 3, marginTop: 3 },
+  footerText: { fontSize: 5.5, color: GRAY, textAlign: "center" },
+});
+
 export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
-  const fonts = await getFonts();
+  await ensureFontsRegistered();
   const classesWithStudents = (plan.classes || []).filter((c: any) => c.students && c.students.length > 0);
   const allClasses = classesWithStudents.length > 0 ? classesWithStudents : [{ classNumber: 1, students: [] }];
 
-  // تحميل شعار وزارة التعليم وتحويله إلى PNG آمن
-  let moeLogoBuffer: Buffer | null = null;
+  // تحميل شعار وزارة التعليم
+  let moeLogoSrc: string | null = null;
   if (fs.existsSync(MOE_LOGO_PATH)) {
     try {
-      moeLogoBuffer = await toSafePngBuffer(fs.readFileSync(MOE_LOGO_PATH));
+      const buf = await toSafePngBuffer(fs.readFileSync(MOE_LOGO_PATH));
+      moeLogoSrc = `data:image/png;base64,${buf.toString("base64")}`;
     } catch { /* تجاهل */ }
   }
 
-  // تحميل شعار المدرسة وتحويله إلى PNG آمن
-  let schoolLogoBuffer: Buffer | null = null;
+  // تحميل شعار المدرسة
+  let schoolLogoSrc: string | null = null;
   if (plan.schoolLogoUrl) {
     try {
       const logoUrl = plan.schoolLogoUrl.startsWith("/manus-storage/")
@@ -327,312 +402,164 @@ export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
       const resp = await fetch(logoUrl);
       if (resp.ok) {
         const rawBuf = Buffer.from(await resp.arrayBuffer());
-        schoolLogoBuffer = await toSafePngBuffer(rawBuf);
+        const pngBuf = await toSafePngBuffer(rawBuf);
+        schoolLogoSrc = `data:image/png;base64,${pngBuf.toString("base64")}`;
       }
-    } catch { /* تجاهل خطأ الشعار */ }
+    } catch { /* تجاهل */ }
   }
 
   // QR codes
   const qrExamDataUrl = plan.examLink ? await generateQRBase64(plan.examLink) : "";
   const qrProjectDataUrl = plan.projectLink ? await generateQRBase64(plan.projectLink) : "";
 
-  // تحويل QR data URL إلى Buffer PNG آمن
-  async function qrToBuffer(dataUrl: string): Promise<Buffer | null> {
-    if (!dataUrl) return null;
-    const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
-    const raw = Buffer.from(base64, "base64");
-    return await toSafePngBuffer(raw);
-  }
-  const qrExamBuf = await qrToBuffer(qrExamDataUrl);
-  const qrProjectBuf = await qrToBuffer(qrProjectDataUrl);
-
   const notes = plan.teacherNotes || DEFAULT_NOTES;
   const initialActionsText = plan.initialActions || "";
 
-  // إعدادات الصفحة A4
-  const PAGE_W = 595.28; // A4 width in points
-  const PAGE_H = 841.89; // A4 height in points
-  const MARGIN = 22;
-  const CONTENT_W = PAGE_W - MARGIN * 2;
+  // بناء مكوّن React-PDF
+  const TreatmentPlanDoc = () => React.createElement(
+    PDFDoc,
+    { title: `الخطة العلاجية - ${plan.schoolName}` },
+    ...allClasses.map((cls: any) => {
+      const students: any[] = cls.students || [];
+      const planTitle = `الخطة العلاجية للصف ${plan.gradeLevel || cls.className || cls.classNumber}`;
 
-  // ألوان
-  const GREEN = "#1a7a5e";
-  const DARK_GREEN = "#0d5c45";
-  const WHITE = "#ffffff";
-  const LIGHT_BG = "#f0faf6";
-  const RED = "#c0392b";
-  const GOLD = "#b8860b";
-  const GOLD_BG = "#fffbeb";
-  const GRAY = "#888888";
-  const BORDER = "#cccccc";
+      return React.createElement(Page, { key: cls.classNumber, size: "A4", style: styles.page },
+        // ===== الرأس =====
+        React.createElement(View, { style: styles.header },
+          moeLogoSrc
+            ? React.createElement(PDFImage, { style: styles.headerLogo, src: moeLogoSrc })
+            : React.createElement(View, { style: styles.headerLogo }),
+          React.createElement(View, { style: styles.headerCenter },
+            React.createElement(Text, { style: styles.headerKingdom }, "المملكة العربية السعودية"),
+            React.createElement(Text, { style: styles.headerMinistry }, "وزارة التعليم"),
+            React.createElement(Text, { style: styles.headerSchool }, plan.schoolName || ""),
+          ),
+          schoolLogoSrc
+            ? React.createElement(PDFImage, { style: styles.headerLogo, src: schoolLogoSrc })
+            : React.createElement(View, { style: styles.headerLogo }),
+        ),
 
-  const doc = new PDFDocument({
-    size: "A4",
-    margin: MARGIN,
-    info: { Title: `الخطة العلاجية - ${plan.schoolName}`, Author: plan.teacherName },
-  });
+        // ===== عنوان الخطة =====
+        React.createElement(Text, { style: styles.planTitle }, planTitle),
 
-  doc.registerFont("Arabic", fonts.regular);
-  doc.registerFont("ArabicBold", fonts.bold);
+        // ===== صف المعلومات =====
+        React.createElement(View, { style: styles.infoRow },
+          React.createElement(View, { style: styles.infoBox },
+            React.createElement(Text, { style: styles.infoLabel }, "الفصل الدراسي"),
+            React.createElement(Text, { style: styles.infoValue }, plan.academicYear || "الثاني / 1446هـ"),
+          ),
+          React.createElement(View, { style: styles.infoBox },
+            React.createElement(Text, { style: styles.infoLabel }, "الصف والفصل"),
+            React.createElement(Text, { style: styles.infoValue }, `${plan.gradeLevel || "الصف"} / ${cls.classNumber}`),
+          ),
+          React.createElement(View, { style: styles.infoBox },
+            React.createElement(Text, { style: styles.infoLabel }, "المادة الدراسية"),
+            React.createElement(Text, { style: styles.infoValue }, plan.subject || ""),
+          ),
+          React.createElement(View, { style: styles.infoBox },
+            React.createElement(Text, { style: styles.infoLabel }, "التاريخ"),
+            React.createElement(Text, { style: styles.infoValue }, "...... / ...... / ....هـ"),
+          ),
+        ),
 
-  const chunks: Buffer[] = [];
-  doc.on("data", (c: Buffer) => chunks.push(c));
+        // ===== جدول الطلاب =====
+        React.createElement(View, { style: { borderWidth: 0.8, borderColor: GREEN, borderRadius: 2, marginBottom: 4 } },
+          // رأس الجدول
+          React.createElement(View, { style: styles.tableHeaderRow },
+            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 0.4 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "م")),
+            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 2.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "اسم الطالب")),
+            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "رقم الجلسة")),
+            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "الاختبار")),
+            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "سبب عدم حل الاختبار")),
+            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "المشروع")),
+            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "سبب عدم تسليم المشروع")),
+            React.createElement(View, { style: [styles.tableHeaderCell, { borderRightWidth: 0 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "الإجراء المتخذ")),
+          ),
+          // صفوف الطلاب
+          ...students.map((s: any, si: number) =>
+            React.createElement(View, { key: si, style: [styles.tableRow, { backgroundColor: si % 2 === 0 ? WHITE : LIGHT_BG }] },
+              React.createElement(View, { style: [styles.tableCell, { flex: 0.4 }] }, React.createElement(Text, { style: [styles.tableCellText, { color: GREEN, fontFamily: "ArabicBold" }] }, String(si + 1))),
+              React.createElement(View, { style: [styles.tableCellName, { flex: 2.5 }] }, React.createElement(Text, { style: styles.tableCellNameText }, s.studentName || "")),
+              React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: styles.tableCellText }, "")),
+              React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: [styles.tableCellText, { color: s.examStatus === "no_exam" ? RED : GREEN, fontFamily: "ArabicBold" }] }, s.examStatus === "no_exam" ? "لم يحل" : "حل")),
+              React.createElement(View, { style: [styles.tableCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableCellText }, "")),
+              React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: [styles.tableCellText, { color: s.projectStatus === "not_submitted" ? RED : GREEN, fontFamily: "ArabicBold" }] }, s.projectStatus === "not_submitted" ? "لم يسلم" : "سلم")),
+              React.createElement(View, { style: [styles.tableCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableCellText }, "")),
+              React.createElement(View, { style: [styles.tableCell, { borderRightWidth: 0 }] }, React.createElement(Text, { style: styles.tableCellText }, "")),
+            )
+          ),
+          students.length === 0 && React.createElement(View, { style: styles.tableRow },
+            React.createElement(View, { style: { flex: 1, padding: 4, alignItems: "center" } },
+              React.createElement(Text, { style: { fontSize: 7, color: GRAY } }, "لا يوجد طلاب")
+            )
+          ),
+        ),
 
-  // دالة مساعدة: رسم نص RTL
-  function drawRTLText(text: string, x: number, y: number, opts: any = {}) {
-    const { size = 8, bold = false, color = "#1a1a1a", align = "right", width = CONTENT_W } = opts;
-    doc.font(bold ? "ArabicBold" : "Arabic")
-      .fontSize(size)
-      .fillColor(color)
-      .text(text, x, y, { width, align, lineBreak: false });
-  }
+        // ===== الإجراءات الأولية =====
+        initialActionsText ? React.createElement(View, { style: styles.actionsBox },
+          React.createElement(Text, { style: styles.actionsTitle }, "الإجراءات الأولية المنفذة قبل الخطة العلاجية:"),
+          React.createElement(Text, { style: styles.actionsText }, initialActionsText),
+        ) : null,
 
-  // دالة رسم مستطيل ملون
-  function fillRect(x: number, y: number, w: number, h: number, color: string) {
-    doc.rect(x, y, w, h).fill(color);
-  }
+        // ===== ملاحظات المعلم =====
+        React.createElement(View, { style: styles.notesBox },
+          React.createElement(Text, { style: styles.notesTitle }, "ملاحظات المعلم / الإجراءات العلاجية الأولية المنفذة:"),
+          React.createElement(Text, { style: styles.notesText }, notes),
+        ),
 
-  // دالة رسم حدود مستطيل
-  function strokeRect(x: number, y: number, w: number, h: number, color: string, lw = 0.5) {
-    doc.rect(x, y, w, h).lineWidth(lw).stroke(color);
-  }
+        // ===== التوقيعات =====
+        React.createElement(View, { style: styles.sigRow },
+          React.createElement(View, { style: styles.sigBox },
+            React.createElement(Text, { style: styles.sigTitle }, "توقيع المعلم"),
+            React.createElement(Text, { style: styles.sigName }, plan.teacherName || ""),
+            React.createElement(View, { style: styles.sigLine }),
+            React.createElement(Text, { style: styles.sigLabel }, "التوقيع"),
+          ),
+          React.createElement(View, { style: styles.sigBox },
+            React.createElement(Text, { style: styles.sigTitle }, "اطلع عليه مدير المدرسة"),
+            React.createElement(Text, { style: styles.sigName }, plan.principalName || ""),
+            React.createElement(View, { style: styles.sigLine }),
+            React.createElement(Text, { style: styles.sigLabel }, "التوقيع"),
+          ),
+          React.createElement(View, { style: styles.sigBox },
+            React.createElement(Text, { style: styles.sigTitle }, "المرشد الطلابي"),
+            React.createElement(Text, { style: styles.sigName }, plan.counselorName || "........................."),
+            React.createElement(View, { style: styles.sigLine }),
+            React.createElement(Text, { style: styles.sigLabel }, "التوقيع"),
+          ),
+          React.createElement(View, { style: styles.sigBox },
+            React.createElement(Text, { style: styles.sigTitle }, "توقيع ولي الأمر"),
+            React.createElement(Text, { style: styles.sigName }, "........................."),
+            React.createElement(View, { style: styles.sigLine }),
+            React.createElement(Text, { style: styles.sigLabel }, "التوقيع"),
+          ),
+        ),
 
-  for (let ci = 0; ci < allClasses.length; ci++) {
-    const cls = allClasses[ci];
-    const students: any[] = cls.students || [];
-    if (ci > 0) doc.addPage();
+        // ===== QR Codes =====
+        (qrExamDataUrl || qrProjectDataUrl) ? React.createElement(View, { style: styles.qrRow },
+          qrExamDataUrl ? React.createElement(View, { style: styles.qrHalf },
+            React.createElement(Text, { style: styles.qrTitle }, `رابط اختبار ${plan.subject}`),
+            React.createElement(PDFImage, { style: styles.qrImage, src: qrExamDataUrl }),
+            plan.examLink ? React.createElement(Text, { style: styles.qrLink }, plan.examLink) : null,
+            plan.examDuration ? React.createElement(Text, { style: styles.qrDuration }, `متاح ${plan.examDuration}`) : null,
+          ) : React.createElement(View, { style: styles.qrHalf }),
+          qrProjectDataUrl ? React.createElement(View, { style: [styles.qrHalf, { borderRightWidth: 0.5, borderRightColor: GREEN }] },
+            React.createElement(Text, { style: styles.qrTitle }, `رابط تسليم مشروع ${plan.subject}`),
+            React.createElement(PDFImage, { style: styles.qrImage, src: qrProjectDataUrl }),
+            plan.projectLink ? React.createElement(Text, { style: styles.qrLink }, plan.projectLink) : null,
+            plan.projectDuration ? React.createElement(Text, { style: styles.qrDuration }, `متاح ${plan.projectDuration}`) : null,
+          ) : React.createElement(View, { style: styles.qrHalf }),
+        ) : null,
 
-    let y = MARGIN;
+        // ===== التذييل =====
+        React.createElement(View, { style: styles.footer },
+          React.createElement(Text, { style: styles.footerText }, `${plan.schoolName} | وزارة التعليم | المملكة العربية السعودية`),
+        ),
+      );
+    })
+  );
 
-    // ===== الرأس =====
-    const headerH = 56;
-    // خط سفلي للرأس
-    doc.rect(MARGIN, y + headerH, CONTENT_W, 2).fill(GREEN);
-
-    // شعار وزارة التعليم (يسار)
-    if (moeLogoBuffer) {
-      doc.image(moeLogoBuffer, MARGIN, y + 3, { width: 48, height: 42 });
-    } else {
-      doc.font("ArabicBold").fontSize(7).fillColor(GREEN)
-        .text("وزارةالتعليم", MARGIN, y + 18, { width: 48, align: "center" });
-    }
-
-    // شعار المدرسة (يمين)
-    if (schoolLogoBuffer) {
-      doc.image(schoolLogoBuffer, PAGE_W - MARGIN - 50, y + 3, { width: 48, height: 42 });
-    }
-
-    // نص الرأس (وسط)
-    const centerX = MARGIN + 55;
-    const centerW = CONTENT_W - 110;
-    doc.font("Arabic").fontSize(6.5).fillColor(GRAY)
-      .text("المملكة العربية السعودية", centerX, y + 4, { width: centerW, align: "center" });
-    doc.font("ArabicBold").fontSize(9).fillColor(GREEN)
-      .text("وزارة التعليم", centerX, y + 16, { width: centerW, align: "center" });
-    doc.font("ArabicBold").fontSize(12).fillColor("#1a1a1a")
-      .text(plan.schoolName || "", centerX, y + 28, { width: centerW, align: "center" });
-
-    y += headerH + 6;
-
-    // ===== عنوان الخطة =====
-    fillRect(MARGIN, y, CONTENT_W, 22, GREEN);
-    doc.font("ArabicBold").fontSize(14).fillColor(WHITE)
-      .text(`الخطة العلاجية للصف ${plan.gradeLevel || cls.className || cls.classNumber}`, MARGIN, y + 4, { width: CONTENT_W, align: "center" });
-    y += 26;
-
-    // ===== صف المعلومات =====
-    const infoH = 22;
-    const infoBoxW = CONTENT_W / 4;
-    const infoItems = [
-      { label: "الفصل الدراسي", value: plan.academicYear || "الثاني / 1446هـ" },
-      { label: "الصف والفصل", value: `${plan.gradeLevel || "الصف"} / ${cls.classNumber}` },
-      { label: "المادة الدراسية", value: plan.subject || "" },
-      { label: "التاريخ", value: "...... / ...... / ....هـ" },
-    ];
-    for (let i = 0; i < 4; i++) {
-      const bx = MARGIN + (3 - i) * infoBoxW; // RTL order
-      strokeRect(bx, y, infoBoxW, infoH, GREEN, 0.8);
-      doc.font("ArabicBold").fontSize(6).fillColor(GREEN)
-        .text(infoItems[i].label, bx + 2, y + 3, { width: infoBoxW - 4, align: "center" });
-      doc.font("ArabicBold").fontSize(7.5).fillColor("#1a1a1a")
-        .text(infoItems[i].value, bx + 2, y + 12, { width: infoBoxW - 4, align: "center" });
-    }
-    y += infoH + 4;
-
-    // ===== جدول الطلاب =====
-    // عناوين الجدول
-    const cols = [
-      { label: "م", w: 18 },
-      { label: "اسم الطالب", w: 120 },
-      { label: "رقم الجلسة", w: 45 },
-      { label: "الاختبار", w: 45 },
-      { label: "سبب عدم حل الاختبار", w: 0 },
-      { label: "المشروع", w: 45 },
-      { label: "سبب عدم تسليم المشروع", w: 0 },
-      { label: "الإجراء المتخذ", w: 55 },
-    ];
-    // حساب عرض الأعمدة المرنة
-    const fixedW = cols.reduce((s, c) => s + c.w, 0);
-    const flexW = (CONTENT_W - fixedW) / 2;
-    const colWidths = cols.map(c => c.w === 0 ? flexW : c.w);
-
-    const rowH = 14;
-    const headerRowH = 18;
-    fillRect(MARGIN, y, CONTENT_W, headerRowH, GREEN);
-    // رسم عناوين الجدول (RTL)
-    let cx = MARGIN + CONTENT_W;
-    for (let i = 0; i < cols.length; i++) {
-      cx -= colWidths[i];
-      doc.font("ArabicBold").fontSize(6.5).fillColor(WHITE)
-        .text(cols[i].label, cx + 1, y + 5, { width: colWidths[i] - 2, align: "center", lineBreak: false });
-      if (i < cols.length - 1) {
-        doc.moveTo(cx, y).lineTo(cx, y + headerRowH).lineWidth(0.5).stroke(DARK_GREEN);
-      }
-    }
-    y += headerRowH;
-
-    // صفوف الطلاب
-    for (let si = 0; si < students.length; si++) {
-      const s = students[si];
-      const rowBg = si % 2 === 0 ? WHITE : LIGHT_BG;
-      fillRect(MARGIN, y, CONTENT_W, rowH, rowBg);
-      strokeRect(MARGIN, y, CONTENT_W, rowH, BORDER, 0.3);
-
-      const examText = s.examStatus === "no_exam" ? "لم يحل" : "حل ✓";
-      const projText = s.projectStatus === "not_submitted" ? "لم يسلّم" : "سلّم ✓";
-      const examColor = s.examStatus === "no_exam" ? RED : GREEN;
-      const projColor = s.projectStatus === "not_submitted" ? RED : GREEN;
-
-      const rowData = [
-        { text: String(si + 1), color: GREEN, bold: true },
-        { text: s.studentName || "", color: "#1a1a1a", align: "right" },
-        { text: "", color: "#1a1a1a" },
-        { text: examText, color: examColor, bold: true },
-        { text: "", color: "#1a1a1a" },
-        { text: projText, color: projColor, bold: true },
-        { text: "", color: "#1a1a1a" },
-        { text: "", color: "#1a1a1a" },
-      ];
-
-      cx = MARGIN + CONTENT_W;
-      for (let i = 0; i < rowData.length; i++) {
-        cx -= colWidths[i];
-        const rd = rowData[i] as any;
-        if (rd.text) {
-          doc.font(rd.bold ? "ArabicBold" : "Arabic")
-            .fontSize(6.5).fillColor(rd.color || "#1a1a1a")
-            .text(rd.text, cx + 1, y + 4, { width: colWidths[i] - 2, align: rd.align || "center", lineBreak: false });
-        }
-        if (i < rowData.length - 1) {
-          doc.moveTo(cx, y).lineTo(cx, y + rowH).lineWidth(0.3).stroke(BORDER);
-        }
-      }
-      doc.moveTo(MARGIN, y + rowH).lineTo(MARGIN + CONTENT_W, y + rowH).lineWidth(0.3).stroke(BORDER);
-      y += rowH;
-    }
-    if (students.length === 0) {
-      fillRect(MARGIN, y, CONTENT_W, rowH, "#f9f9f9");
-      doc.font("Arabic").fontSize(7).fillColor(GRAY)
-        .text("لا يوجد طلاب", MARGIN, y + 4, { width: CONTENT_W, align: "center" });
-      y += rowH;
-    }
-    strokeRect(MARGIN, y - (students.length || 1) * rowH - headerRowH, CONTENT_W, (students.length || 1) * rowH + headerRowH, GREEN, 0.8);
-    y += 4;
-
-    // ===== الإجراءات الأولية =====
-    if (initialActionsText) {
-      strokeRect(MARGIN, y, CONTENT_W, 0, GOLD, 0.8);
-      fillRect(MARGIN, y, CONTENT_W, 12, GOLD_BG);
-      doc.font("ArabicBold").fontSize(7).fillColor(GOLD)
-        .text("✅ الإجراءات الأولية المنفذة قبل الخطة العلاجية:", MARGIN + 4, y + 3, { width: CONTENT_W - 8, align: "right" });
-      y += 12;
-      const actH = doc.heightOfString(initialActionsText, { width: CONTENT_W - 8, align: "right" }) + 6;
-      fillRect(MARGIN, y, CONTENT_W, actH, GOLD_BG);
-      strokeRect(MARGIN, y - 12, CONTENT_W, actH + 12, GOLD, 0.8);
-      doc.font("Arabic").fontSize(6.5).fillColor("#92660a")
-        .text(initialActionsText, MARGIN + 4, y + 3, { width: CONTENT_W - 8, align: "right" });
-      y += actH + 4;
-    }
-
-    // ===== ملاحظات المعلم =====
-    const notesH = doc.heightOfString(notes, { width: CONTENT_W - 8, align: "right" }) + 18;
-    strokeRect(MARGIN, y, CONTENT_W, notesH, GREEN, 0.8);
-    doc.font("ArabicBold").fontSize(7).fillColor(GREEN)
-      .text("ملاحظات المعلم / الإجراءات العلاجية الأولية المنفذة:", MARGIN + 4, y + 3, { width: CONTENT_W - 8, align: "right" });
-    doc.moveTo(MARGIN, y + 12).lineTo(MARGIN + CONTENT_W, y + 12).lineWidth(0.5).stroke(GREEN);
-    doc.font("Arabic").fontSize(6.5).fillColor("#1a1a1a")
-      .text(notes, MARGIN + 4, y + 14, { width: CONTENT_W - 8, align: "right" });
-    y += notesH + 4;
-
-    // ===== التوقيعات =====
-    const sigH = 38;
-    const sigW = CONTENT_W / 4;
-    const sigLabels = [
-      { title: "توقيع ولي الأمر", name: "........................." },
-      { title: "المرشد الطلابي", name: plan.counselorName || "........................." },
-      { title: "اطلع عليه مدير المدرسة", name: plan.principalName || "" },
-      { title: "توقيع المعلم", name: plan.teacherName || "" },
-    ];
-    for (let i = 0; i < 4; i++) {
-      const sx = MARGIN + (3 - i) * sigW; // RTL
-      strokeRect(sx, y, sigW, sigH, GREEN, 0.8);
-      doc.font("ArabicBold").fontSize(6.5).fillColor(GREEN)
-        .text(sigLabels[i].title, sx + 2, y + 4, { width: sigW - 4, align: "center" });
-      doc.font("ArabicBold").fontSize(8).fillColor("#1a1a1a")
-        .text(sigLabels[i].name, sx + 2, y + 14, { width: sigW - 4, align: "center" });
-      doc.moveTo(sx + 4, y + sigH - 8).lineTo(sx + sigW - 4, y + sigH - 8).lineWidth(0.5).stroke("#888");
-      doc.font("Arabic").fontSize(6).fillColor(GRAY)
-        .text("التوقيع", sx + 2, y + sigH - 6, { width: sigW - 4, align: "center" });
-    }
-    y += sigH + 4;
-
-    // ===== QR Codes =====
-    if (qrExamBuf || qrProjectBuf) {
-      doc.moveTo(MARGIN, y).lineTo(MARGIN + CONTENT_W, y).lineWidth(1.5).stroke(GREEN);
-      y += 4;
-      const qrSize = 60;
-      const halfW = CONTENT_W / 2;
-      if (qrExamBuf) {
-        doc.font("ArabicBold").fontSize(7.5).fillColor(GREEN)
-          .text(`رابط اختبار ${plan.subject}`, MARGIN + halfW, y, { width: halfW, align: "center" });
-        doc.image(qrExamBuf, MARGIN + halfW + (halfW - qrSize) / 2, y + 10, { width: qrSize, height: qrSize });
-        if (plan.examLink) {
-          doc.font("Arabic").fontSize(5.5).fillColor(DARK_GREEN)
-            .text(plan.examLink, MARGIN + halfW, y + 72, { width: halfW, align: "center" });
-        }
-        if (plan.examDuration) {
-          doc.font("ArabicBold").fontSize(6.5).fillColor(RED)
-            .text(`⚠️ متاح ${plan.examDuration}`, MARGIN + halfW, y + 80, { width: halfW, align: "center" });
-        }
-      }
-      if (qrProjectBuf) {
-        doc.moveTo(MARGIN + halfW, y - 4).lineTo(MARGIN + halfW, y + 90).lineWidth(0.5).dash(3, { space: 3 }).stroke(GREEN);
-        doc.font("ArabicBold").fontSize(7.5).fillColor(GREEN)
-          .text(`رابط تسليم مشروع ${plan.subject}`, MARGIN, y, { width: halfW, align: "center" });
-        doc.image(qrProjectBuf, MARGIN + (halfW - qrSize) / 2, y + 10, { width: qrSize, height: qrSize });
-        if (plan.projectLink) {
-          doc.font("Arabic").fontSize(5.5).fillColor(DARK_GREEN)
-            .text(plan.projectLink, MARGIN, y + 72, { width: halfW, align: "center" });
-        }
-        if (plan.projectDuration) {
-          doc.font("ArabicBold").fontSize(6.5).fillColor(RED)
-            .text(`⚠️ متاح ${plan.projectDuration}`, MARGIN, y + 80, { width: halfW, align: "center" });
-        }
-      }
-      y += 95;
-    }
-
-    // ===== التذييل =====
-    doc.moveTo(MARGIN, PAGE_H - MARGIN - 12).lineTo(MARGIN + CONTENT_W, PAGE_H - MARGIN - 12).lineWidth(0.8).stroke(GREEN);
-    doc.font("Arabic").fontSize(6).fillColor(GRAY)
-      .text(`${plan.schoolName} | وزارة التعليم | المملكة العربية السعودية`, MARGIN, PAGE_H - MARGIN - 8, { width: CONTENT_W, align: "center" });
-  }
-
-  doc.end();
-  return new Promise<Buffer>((resolve, reject) => {
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
-  });
+  return await renderToBuffer(React.createElement(TreatmentPlanDoc));
 }
 
 // توليد DOCX
