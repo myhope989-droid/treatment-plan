@@ -327,7 +327,7 @@ const LIGHT_BG = "#f0faf6";
 const WHITE = "#ffffff";
 
 const styles = StyleSheet.create({
-  page: { fontFamily: "Arabic", direction: "rtl", padding: "6mm 8mm 5mm 8mm", backgroundColor: WHITE, fontSize: 7 },
+  page: { fontFamily: "Arabic", padding: "6mm 8mm 5mm 8mm", backgroundColor: WHITE, fontSize: 7 },
   // رأس الصفحة
   header: { flexDirection: "row", alignItems: "center", borderBottomWidth: 2, borderBottomColor: GREEN, paddingBottom: 4, marginBottom: 4 },
   headerLogo: { width: 44, height: 38, objectFit: "contain" },
@@ -424,68 +424,68 @@ export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
       const planTitle = `الخطة العلاجية للصف ${plan.gradeLevel || cls.className || cls.classNumber}`;
 
       return React.createElement(Page, { key: cls.classNumber, size: "A4", style: styles.page },
-        // ===== الرأس =====
+        // ===== الرأس ===== (من اليمين: شعار المدرسة، النص، شعار وزارة التعليم)
         React.createElement(View, { style: styles.header },
-          moeLogoSrc
-            ? React.createElement(PDFImage, { style: styles.headerLogo, src: moeLogoSrc })
+          schoolLogoSrc
+            ? React.createElement(PDFImage, { style: styles.headerLogo, src: schoolLogoSrc })
             : React.createElement(View, { style: styles.headerLogo }),
           React.createElement(View, { style: styles.headerCenter },
             React.createElement(Text, { style: styles.headerKingdom }, "المملكة العربية السعودية"),
             React.createElement(Text, { style: styles.headerMinistry }, "وزارة التعليم"),
             React.createElement(Text, { style: styles.headerSchool }, plan.schoolName || ""),
           ),
-          schoolLogoSrc
-            ? React.createElement(PDFImage, { style: styles.headerLogo, src: schoolLogoSrc })
+          moeLogoSrc
+            ? React.createElement(PDFImage, { style: styles.headerLogo, src: moeLogoSrc })
             : React.createElement(View, { style: styles.headerLogo }),
         ),
 
         // ===== عنوان الخطة =====
         React.createElement(Text, { style: styles.planTitle }, planTitle),
 
-        // ===== صف المعلومات =====
+        // ===== صف المعلومات ===== (RTL: التاريخ أولاً من اليمين)
         React.createElement(View, { style: styles.infoRow },
           React.createElement(View, { style: styles.infoBox },
-            React.createElement(Text, { style: styles.infoLabel }, "الفصل الدراسي"),
-            React.createElement(Text, { style: styles.infoValue }, plan.academicYear || "الثاني / 1446هـ"),
-          ),
-          React.createElement(View, { style: styles.infoBox },
-            React.createElement(Text, { style: styles.infoLabel }, "الصف والفصل"),
-            React.createElement(Text, { style: styles.infoValue }, `${plan.gradeLevel || "الصف"} / ${cls.classNumber}`),
+            React.createElement(Text, { style: styles.infoLabel }, "التاريخ"),
+            React.createElement(Text, { style: styles.infoValue }, "...... / ...... / ....هـ"),
           ),
           React.createElement(View, { style: styles.infoBox },
             React.createElement(Text, { style: styles.infoLabel }, "المادة الدراسية"),
             React.createElement(Text, { style: styles.infoValue }, plan.subject || ""),
           ),
           React.createElement(View, { style: styles.infoBox },
-            React.createElement(Text, { style: styles.infoLabel }, "التاريخ"),
-            React.createElement(Text, { style: styles.infoValue }, "...... / ...... / ....هـ"),
+            React.createElement(Text, { style: styles.infoLabel }, "الصف والفصل"),
+            React.createElement(Text, { style: styles.infoValue }, `${plan.gradeLevel || "الصف"} / ${cls.classNumber}`),
+          ),
+          React.createElement(View, { style: styles.infoBox },
+            React.createElement(Text, { style: styles.infoLabel }, "الفصل الدراسي"),
+            React.createElement(Text, { style: styles.infoValue }, plan.academicYear || "الثاني / 1446هـ"),
           ),
         ),
 
         // ===== جدول الطلاب =====
         React.createElement(View, { style: { borderWidth: 0.8, borderColor: GREEN, borderRadius: 2, marginBottom: 4 } },
-          // رأس الجدول (من اليمين: اسم الطالب أولاً)
+          // رأس الجدول (LTR في الكود لكن يظهر RTL في PDF: م ← اسم الطالب ← رقم الجلسة ← الاختبار ← سبب عدم حل ← المشروع ← سبب عدم تسليم ← الإجراء)
           React.createElement(View, { style: styles.tableHeaderRow },
-            React.createElement(View, { style: [styles.tableHeaderCell, { borderRightWidth: 0 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "الإجراء المتخذ")),
-            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "سبب عدم تسليم المشروع")),
-            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "المشروع")),
-            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "سبب عدم حل الاختبار")),
-            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "الاختبار")),
-            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "رقم الجلسة")),
-            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 2.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "اسم الطالب")),
             React.createElement(View, { style: [styles.tableHeaderCell, { flex: 0.4 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "م")),
+            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 2.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "اسم الطالب")),
+            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "رقم الجلسة")),
+            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "الاختبار")),
+            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "سبب عدم حل الاختبار")),
+            React.createElement(View, { style: styles.tableHeaderCell }, React.createElement(Text, { style: styles.tableHeaderText }, "المشروع")),
+            React.createElement(View, { style: [styles.tableHeaderCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "سبب عدم تسليم المشروع")),
+            React.createElement(View, { style: [styles.tableHeaderCell, { borderRightWidth: 0 }] }, React.createElement(Text, { style: styles.tableHeaderText }, "الإجراء المتخذ")),
           ),
           // صفوف الطلاب
           ...students.map((s: any, si: number) =>
             React.createElement(View, { key: si, style: [styles.tableRow, { backgroundColor: si % 2 === 0 ? WHITE : LIGHT_BG }] },
-              React.createElement(View, { style: [styles.tableCell, { borderRightWidth: 0 }] }, React.createElement(Text, { style: styles.tableCellText }, "")),
+              React.createElement(View, { style: [styles.tableCell, { flex: 0.4 }] }, React.createElement(Text, { style: [styles.tableCellText, { color: GREEN, fontFamily: "ArabicBold" }] }, String(si + 1))),
+              React.createElement(View, { style: [styles.tableCellName, { flex: 2.5 }] }, React.createElement(Text, { style: styles.tableCellNameText }, s.studentName || "")),
+              React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: styles.tableCellText }, "")),
+              React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: [styles.tableCellText, { color: s.examStatus === "no_exam" ? RED : GREEN, fontFamily: "ArabicBold" }] }, s.examStatus === "no_exam" ? "لم يحل" : "حل")),
               React.createElement(View, { style: [styles.tableCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableCellText }, "")),
               React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: [styles.tableCellText, { color: s.projectStatus === "not_submitted" ? RED : GREEN, fontFamily: "ArabicBold" }] }, s.projectStatus === "not_submitted" ? "لم يسلم" : "سلم")),
               React.createElement(View, { style: [styles.tableCell, { flex: 1.5 }] }, React.createElement(Text, { style: styles.tableCellText }, "")),
-              React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: [styles.tableCellText, { color: s.examStatus === "no_exam" ? RED : GREEN, fontFamily: "ArabicBold" }] }, s.examStatus === "no_exam" ? "لم يحل" : "حل")),
-              React.createElement(View, { style: styles.tableCell }, React.createElement(Text, { style: styles.tableCellText }, "")),
-              React.createElement(View, { style: [styles.tableCellName, { flex: 2.5 }] }, React.createElement(Text, { style: styles.tableCellNameText }, s.studentName || "")),
-              React.createElement(View, { style: [styles.tableCell, { flex: 0.4 }] }, React.createElement(Text, { style: [styles.tableCellText, { color: GREEN, fontFamily: "ArabicBold" }] }, String(si + 1))),
+              React.createElement(View, { style: [styles.tableCell, { borderRightWidth: 0 }] }, React.createElement(Text, { style: styles.tableCellText }, "")),
             )
           ),
           students.length === 0 && React.createElement(View, { style: styles.tableRow },
@@ -507,17 +507,11 @@ export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
           React.createElement(Text, { style: styles.notesText }, notes),
         ),
 
-        // ===== التوقيعات =====
+        // ===== التوقيعات ===== (RTL: ولي الأمر ← مرشد ← مدير ← معلم)
         React.createElement(View, { style: styles.sigRow },
           React.createElement(View, { style: styles.sigBox },
-            React.createElement(Text, { style: styles.sigTitle }, "توقيع المعلم"),
-            React.createElement(Text, { style: styles.sigName }, plan.teacherName || ""),
-            React.createElement(View, { style: styles.sigLine }),
-            React.createElement(Text, { style: styles.sigLabel }, "التوقيع"),
-          ),
-          React.createElement(View, { style: styles.sigBox },
-            React.createElement(Text, { style: styles.sigTitle }, "اطلع عليه مدير المدرسة"),
-            React.createElement(Text, { style: styles.sigName }, plan.principalName || ""),
+            React.createElement(Text, { style: styles.sigTitle }, "توقيع ولي الأمر"),
+            React.createElement(Text, { style: styles.sigName }, "........................."),
             React.createElement(View, { style: styles.sigLine }),
             React.createElement(Text, { style: styles.sigLabel }, "التوقيع"),
           ),
@@ -528,8 +522,14 @@ export async function generateTreatmentPlanPDF(plan: any): Promise<Buffer> {
             React.createElement(Text, { style: styles.sigLabel }, "التوقيع"),
           ),
           React.createElement(View, { style: styles.sigBox },
-            React.createElement(Text, { style: styles.sigTitle }, "توقيع ولي الأمر"),
-            React.createElement(Text, { style: styles.sigName }, "........................."),
+            React.createElement(Text, { style: styles.sigTitle }, "اطلع عليه مدير المدرسة"),
+            React.createElement(Text, { style: styles.sigName }, plan.principalName || ""),
+            React.createElement(View, { style: styles.sigLine }),
+            React.createElement(Text, { style: styles.sigLabel }, "التوقيع"),
+          ),
+          React.createElement(View, { style: styles.sigBox },
+            React.createElement(Text, { style: styles.sigTitle }, "توقيع المعلم"),
+            React.createElement(Text, { style: styles.sigName }, plan.teacherName || ""),
             React.createElement(View, { style: styles.sigLine }),
             React.createElement(Text, { style: styles.sigLabel }, "التوقيع"),
           ),
