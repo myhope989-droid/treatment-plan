@@ -1,6 +1,6 @@
 import { eq, desc, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, treatmentPlans, planClasses, planStudents, InsertTreatmentPlan, InsertPlanClass, InsertPlanStudent } from "../drizzle/schema";
+import { InsertUser, users, treatmentPlans, planClasses, planStudents, InsertTreatmentPlan, InsertPlanClass, InsertPlanStudent, appSettings } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -130,4 +130,21 @@ export async function getPlanStudentsByPlanId(planId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(planStudents).where(eq(planStudents.planId, planId)).orderBy(planStudents.classId, planStudents.rowNumber);
+}
+
+// ===== App Settings =====
+export async function getSetting(key: string): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(appSettings).where(eq(appSettings.settingKey, key)).limit(1);
+  return rows[0]?.settingValue ?? null;
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(appSettings)
+    .values({ settingKey: key, settingValue: value })
+    .$dynamic()
+    .onDuplicateKeyUpdate({ set: { settingValue: value } });
 }

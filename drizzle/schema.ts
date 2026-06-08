@@ -74,3 +74,14 @@ export const planStudents = mysqlTable("plan_students", {
 
 export type PlanStudent = typeof planStudents.$inferSelect;
 export type InsertPlanStudent = typeof planStudents.$inferInsert;
+
+// جدول إعدادات التطبيق (كلمات المرور)
+export const appSettings = mysqlTable("app_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  settingKey: varchar("settingKey", { length: 100 }).notNull().unique(),
+  settingValue: text("settingValue").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AppSetting = typeof appSettings.$inferSelect;
+export type InsertAppSetting = typeof appSettings.$inferInsert;

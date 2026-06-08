@@ -10,7 +10,8 @@ import {
   createTreatmentPlan, updateTreatmentPlan, getTreatmentPlanById,
   getTreatmentPlansByUser, createPlanClass, updatePlanClass,
   getPlanClassesByPlanId, createPlanStudents, getPlanStudentsByClassId,
-  getPlanStudentsByPlanId, deletePlanStudentsByClassId, updatePlanStudent
+  getPlanStudentsByPlanId, deletePlanStudentsByClassId, updatePlanStudent,
+  getSetting, setSetting
 } from "./db";
 import { generateTreatmentPlanPDF, generateTreatmentPlanDOCX, generatePageHTML } from "./reportGenerator.ts";
 
@@ -405,6 +406,46 @@ export const appRouter = router({
         }
       }),
   }),
-});
 
+  // ===== Settings (Password Management) =====
+  settings: router({
+    // التحقق من كلمة مرور لوحة التحكم
+    verifyAdmin: publicProcedure
+      .input(z.object({ password: z.string() }))
+      .mutation(async ({ input }) => {
+        const stored = await getSetting('admin_password') ?? '2130';
+        if (input.password !== stored) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'كلمة المرور غير صحيحة' });
+        return { success: true };
+      }),
+
+    // التحقق من كلمة مرور ابدأ الآن
+    verifyStart: publicProcedure
+      .input(z.object({ password: z.string() }))
+      .mutation(async ({ input }) => {
+        const stored = await getSetting('start_password') ?? '1122';
+        if (input.password !== stored) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'كلمة المرور غير صحيحة' });
+        return { success: true };
+      }),
+
+    // تغيير كلمة مرور لوحة التحكم (تتطلب كلمة المرور الحالية)
+    updateAdminPassword: publicProcedure
+      .input(z.object({ currentPassword: z.string(), newPassword: z.string().min(4) }))
+      .mutation(async ({ input }) => {
+        const stored = await getSetting('admin_password') ?? '2130';
+        if (input.currentPassword !== stored) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'كلمة المرور الحالية غير صحيحة' });
+        await setSetting('admin_password', input.newPassword);
+        return { success: true };
+      }),
+
+    // تغيير كلمة مرور ابدأ الآن (تتطلب كلمة مرور لوحة التحكم)
+    updateStartPassword: publicProcedure
+      .input(z.object({ adminPassword: z.string(), newPassword: z.string().min(4) }))
+      .mutation(async ({ input }) => {
+        const stored = await getSetting('admin_password') ?? '2130';
+        if (input.adminPassword !== stored) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'كلمة مرور لوحة التحكم غير صحيحة' });
+        await setSetting('start_password', input.newPassword);
+        return { success: true };
+      }),
+  }),
+});
 export type AppRouter = typeof appRouter;

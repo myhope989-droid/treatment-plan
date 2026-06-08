@@ -43,6 +43,13 @@
       "when": 1780758586721,
       "tag": "0005_parched_silver_fox",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1780898782672,
+      "tag": "0006_curious_catseye",
+      "breakpoints": true
     }
   ]
 }
