@@ -1,9 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { BookOpen, FileText, History, Sparkles, CheckCircle, Settings, X, Eye, EyeOff, Lock, KeyRound } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+
+// مفاتيح localStorage
+const ADMIN_REMEMBER_KEY = "admin_remembered";
+const START_REMEMBER_KEY = "start_remembered";
+const REMEMBER_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 أيام
+
+function isRemembered(key: string): boolean {
+  try {
+    const val = localStorage.getItem(key);
+    if (!val) return false;
+    const { expiry } = JSON.parse(val);
+    if (Date.now() > expiry) { localStorage.removeItem(key); return false; }
+    return true;
+  } catch { return false; }
+}
+
+function saveRemember(key: string) {
+  localStorage.setItem(key, JSON.stringify({ expiry: Date.now() + REMEMBER_DURATION_MS }));
+}
+
+function clearRemember(key: string) {
+  localStorage.removeItem(key);
+}
 
 // ===== مودال كلمة المرور =====
 function PasswordModal({
@@ -20,11 +43,20 @@ function PasswordModal({
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
 
   const verifyAdmin = trpc.settings.verifyAdmin.useMutation();
   const verifyStart = trpc.settings.verifyStart.useMutation();
 
   const isAdmin = title.includes("التحكم");
+  const rememberKey = isAdmin ? ADMIN_REMEMBER_KEY : START_REMEMBER_KEY;
+
+  // إذا كانت كلمة المرور محفوظة، ادخل مباشرة
+  useEffect(() => {
+    if (isRemembered(rememberKey)) {
+      onSuccess();
+    }
+  }, []);
 
   const handleSubmit = async () => {
     setError("");
@@ -34,6 +66,7 @@ function PasswordModal({
       } else {
         await verifyStart.mutateAsync({ password });
       }
+      if (rememberMe) saveRemember(rememberKey);
       onSuccess();
     } catch {
       setError("كلمة المرور غير صحيحة، حاول مجدداً");
@@ -76,6 +109,16 @@ function PasswordModal({
             </button>
           </div>
           {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
+          {/* تذكّرني */}
+          <label className="flex items-center gap-2 mt-3 cursor-pointer select-none justify-center">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={e => setRememberMe(e.target.checked)}
+              className="w-4 h-4 accent-amber-600 cursor-pointer"
+            />
+            <span className="text-gray-600 text-sm">تذكّرني لمدة 7 أيام</span>
+          </label>
           <p className="text-gray-400 text-xs text-center mt-2">💡 {isAdmin ? "تذكير: كلمة مرور لوحة التحكم" : "تذكير: كلمة مرور البدء"}</p>
           <Button
             className="w-full mt-4 text-white font-bold rounded-xl"
@@ -176,6 +219,27 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
                 <div>
                   <p className="font-bold text-gray-800 text-sm">خططي السابقة</p>
                   <p className="text-gray-500 text-xs">استعراض وتنزيل الخطط القديمة</p>
+                </div>
+              </button>
+
+              <hr className="border-gray-100 my-2" />
+
+              {/* مسح كلمات المرور المحفوظة */}
+              <button
+                onClick={() => {
+                  clearRemember(ADMIN_REMEMBER_KEY);
+                  clearRemember(START_REMEMBER_KEY);
+                  toast.success("تم مسح كلمات المرور المحفوظة");
+                  onClose();
+                }}
+                className="w-full flex items-center gap-3 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl px-4 py-3 transition-colors text-right"
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-red-100">
+                  <X className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-800 text-sm">مسح كلمات المرور المحفوظة</p>
+                  <p className="text-gray-500 text-xs">سيطلب منك كلمة المرور في المرة القادمة</p>
                 </div>
               </button>
 
